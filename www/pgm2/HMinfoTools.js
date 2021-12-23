@@ -1,4 +1,4 @@
-FW_version["HMinfoTools.js"] = "$Id: HMinfoTools.js 2009 2021-12-22 00:49:58Z frank $";
+FW_version["HMinfoTools.js"] = "$Id: HMinfoTools.js 2006 2021-12-22 00:49:58Z frank $";
 
 /*
 new version
