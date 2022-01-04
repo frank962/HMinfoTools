@@ -1,0 +1,2 @@
+UPD 2022-01-04_18:29:19 77489 www/pgm2/HMinfoTools.js
+UPD 2022-01-04_17:24:18 85497 www/pgm2/HMdeviceTools.js

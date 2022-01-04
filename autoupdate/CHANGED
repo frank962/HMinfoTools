@@ -1,0 +1,15 @@
+HMinfoTools.js last change:
+  2006 2022-01-03
+  - fix: color problems with desired-io-icon for devices using no prefered io
+  - fix: some improvements for rssi-table
+
+  History:
+  2005 2021-12-02 - fix: verbesserungen zur vermeidung von fhem-style-problemen
+  2004 2021-11-28 - new: rssi overview optimiert und erweitert
+                  - new: rssi auswertung: IODev ranking und empfehlung/möglichkeit zum setzen von attr IOgrp
+  2003 2021-11-24 - new: rssi overview bei klick auf das zahnrad oben rechts
+                  - new: checkbox zum toggeln der auswahl der anzuzeigenden devices: all devices / error devices
+  2002 2021-11-23 - fix: problem bei desired-io-check, wenn IOgrp ohne prefered IO
+  2001 2021-11-22 - fix: fehlender Templatecheck für HMdeviceTools integriert
+  2000 2021-11-21 - new: HMinfoTools.js erzeugt nun auch die icons für HMdeviceTools.js (neuer name für hm.js)
+                    new: mit einem hminfo userattr "HMinfoTools_deviceMode=all" können jetzt alle devices angezeigt werden
