@@ -1,4 +1,4 @@
-FW_version["HMinfoTools.js"] = "$Id: HMinfoTools.js 2006 2022-01-04 17:29:19Z frank $";
+FW_version["HMinfoTools.js"] = "$Id: HMinfoTools.js 2007 2022-01-07 09:58:58Z frank $";
 
 var HMinfoTools_debug = true;
 var HMinfoTools_csrf;
@@ -1453,7 +1453,7 @@ function HMinfoTools_setIconFromIODev(device,iodev) {
 	var curVccu = IOgrp.replace(/:.+$/,'');
 	var curVccuIoArr = [iodev]; //fake for HMdeviceTools!!!
 	if(document.getElementById('hminfotools') != null) { //only with hminfo
-		curVccuIoArr = (curVccu != '')? $('#hminfotools').attr('vcculist').match('(?<=^'+curVccu+':|\\s'+curVccu+':)[^\\s]+')[0].split(','): [];
+		curVccuIoArr = (curVccu != '' && curVccu != 'missing_IOgrp')? $('#hminfotools').attr('vcculist').match('(?<=^'+curVccu+':|\\s'+curVccu+':)[^\\s]+')[0].split(','): [];
 	}
 	
 	var aIODev = devObj.aIODev;
