@@ -1,11 +1,16 @@
-HMinfoTools.js last change:
-  2007 2022-01-07
-  - fix: problems for devices using attr IODev #112825.msg1198733.html#msg1198733
-  2006 2022-01-04
-  - fix: color problems with desired-io-icon for devices using no prefered io
-  - fix: some improvements for rssi-table
+HMtools repository last changes:
+  HMinfoTools 2008 2022-01-09
+  - add update info for outdated hminfo modul
+  HMinfoTools 2007 2022-01-07
+  - fix problems for devices with attr IODev #112825.msg1198733.html#msg1198733
+  HMinfoTools 2006 2022-01-04
+  - fix color problems with desired-io-icon for devices using no prefered io
+  - some improvements for rssi-table
 
-  History:
+  History HMinfoTools.js:
+  2007 2022-01-07	- fix problems for devices using attr IODev #112825.msg1198733.html#msg1198733
+  2006 2022-01-04 - fix color problems with desired-io-icon for devices using no prefered io
+                  - some improvements for rssi-table
   2005 2021-12-02 - fix: verbesserungen zur vermeidung von fhem-style-problemen
   2004 2021-11-28 - new: rssi overview optimiert und erweitert
                   - new: rssi auswertung: IODev ranking und empfehlung/möglichkeit zum setzen von attr IOgrp
@@ -16,33 +21,20 @@ HMinfoTools.js last change:
   2000 2021-11-21 - new: HMinfoTools.js erzeugt nun auch die icons für HMdeviceTools.js (neuer name für hm.js)
                     new: mit einem hminfo userattr "HMinfoTools_deviceMode=all" können jetzt alle devices angezeigt werden
 
-[size=12pt][b]history: hm.js[/b][/size]
-[list][li]rev 2000 01.01.2020[/li]
-[li]rev 2001 11.01.2020[/li][list]
-[li]new: generische template erstellung (short OR long)[/li]
-[li]new: funktionen "All On, All Off" zum schnellen aus-/abwählen aller register bei der template erstellung[/li][/list]
-[li]rev 2002 31.01.2020[/li][list]
-[li]new: "globale" template zuweisung mit den funktionen "Use, Use All, Use None"[/li]
-[li]new: auswahlliste diverser template details in der template ansicht. [/li][/list]
-[li]rev 2003 04.02.2020[/li][list]
-[li]fix: style problem mit f18[/li]
-[li]fix: manchmal doppelte einträge in tabelle used devices (laufzeitproblem)[/li][/list]
-[li]rev 2004 25.02.2020[/li][list]
-[li]fix: probleme mit templates vom typ "both"[/li][/list]
-[li]rev 2005 04.04.2020[/li][list]
-[li]fix: probleme bei der erkennung von genutzten templates mit langen namen[/li][/list]
-[li]rev 2006 29.05.2020[/li][list]
-[li]new: template nutzung für single-channel-peers[/li]
-[li]fix: some bugs[/li][/list]
-[/list]
-
-[size=12pt][b]history: HMdeviceTools.js[/b][/size]
-[list]
-[li]rev 1000 21.11.2021[/li][list]
-[li]new: status icons werden ggf durch HMinfoTools integriert[/li]
-[li]fix: some bugs[/li][/list]
-[li]rev 1001 22.11.2021[/li][list]
-[li]fix: fix für templatecheck[/li][/list]
-[li]rev 1002 02.12.2021[/li][list]
-[li]fix: verbesserungen zur vermeidung von fhem-style-problemen[/li][/list]
-[/list]
+  History HMdeviceTools.js:
+  1002 2021-12-02 - fix: verbesserungen zur vermeidung von fhem-style-problemen
+  1001 2021-11-22 - fix: fix für templatecheck
+  1000 2021-11-21 - new: status icons werden ggf durch HMinfoTools integriert
+                  - fix: some bugs
+  History hm.js:
+  2006 2020-05-29 - new: template nutzung für single-channel-peers
+                  - fix: some bugs
+  2005 2020-04-04 - fix: probleme bei der erkennung von genutzten templates mit langen namen
+  2004 2020-02-25 - fix: probleme mit templates vom typ "both"
+  2003 2020-02-04 - fix: style problem mit f18
+                  - fix: manchmal doppelte einträge in tabelle used devices (laufzeitproblem)
+  2002 2020-01-31 - new: add functions "Use,Use All,Use None"
+                  - new: auswahlliste diverser template details in der template ansicht.
+  2001 2020-01-11 - new: generische template erstellung (short OR long)
+                  - new: funktionen "All On, All Off" zum schnellen aus-/abwählen aller register bei der template erstellung
+  2000 2020-01-01 - initial version
