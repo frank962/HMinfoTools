@@ -1,4 +1,4 @@
-FW_version["HMinfoTools.js"] = "$Id: HMinfoTools.js 2007 2022-01-07 09:58:58Z frank $";
+FW_version["HMinfoTools.js"] = "$Id: HMinfoTools.js 2008 2022-01-09 14:57:09Z frank $";
 
 var HMinfoTools_debug = true;
 var HMinfoTools_csrf;
@@ -609,9 +609,7 @@ function HMinfoTools_parseErrorDevices(hminfo,weblinkdiv) {
 					HMinfoTools_changeInformChannel('');
 					document.getElementById('hminfo_info').innerHTML = ' => waiting for problems...';
 				}
-			}
-			
-			
+			}			
 		}
 	})
 	.fail(function(xhr,status,err) {
@@ -643,8 +641,7 @@ function HMinfoTools_createHMinfoTools(hminfo,weblinkdiv,lastChange) {
 	div.setAttribute('errordevices_data','init'); // init, start, first, ready
 	div.setAttribute('errordevices_list','init'); // list of current errorDevices
 	div.setAttribute('lost','0');                 // list of lost connections
-	div.setAttribute('class','makeTable wide internals');
-	
+	div.setAttribute('class','makeTable wide internals');	
 	div.appendChild(header);
 	header.innerHTML = '<a href="/fhem?detail=' +hminfo+ '">HMinfoTools</a>';
 	
@@ -811,6 +808,9 @@ function HMinfoTools_parseIOsFromHMinfo(ioInfoRaw) {
 	var ioInfo = ioInfoRaw;
 	
 	if(ioInfoRaw != null && !ioInfoRaw.match(/>/)) { //old hminfo version
+		FW_okDialog('An update for 98_HMinfo.pm is needed!<br><br>'+
+		            'patch for TSCUL users see forum:<br>'+
+								'<a href="https://forum.fhem.de/index.php/topic,124095.0.html">https://forum.fhem.de/index.php/topic,124095.0.html</a>');
 	  //iI_HM_IOdevices     Initialized: cul868;disconnected: hmuart1;dummy: hmusb1;ok: hmlan1;
 		var ios = ioInfoRaw.match(/\s[^;]+/g);
 		ios.forEach(function(io,idx,arr) {arr[idx] = io.trim();});
@@ -1449,11 +1449,14 @@ function HMinfoTools_setIconFromIODev(device,iodev) {
 	// orange     no prefered
 	// red        no poolmember, missing_IODev                reading != attr, missing_IODev           only red
 	var devObj = devMap.get(device);
-	var IOgrp = devObj.IOgrp;
+	var IOgrp = (devObj.IOgrp != 'missing_IOgrp')? devObj.IOgrp: '';
 	var curVccu = IOgrp.replace(/:.+$/,'');
-	var curVccuIoArr = [iodev]; //fake for HMdeviceTools!!!
+	var curVccuIoArr = []; 
 	if(document.getElementById('hminfotools') != null) { //only with hminfo
-		curVccuIoArr = (curVccu != '' && curVccu != 'missing_IOgrp')? $('#hminfotools').attr('vcculist').match('(?<=^'+curVccu+':|\\s'+curVccu+':)[^\\s]+')[0].split(','): [];
+		curVccuIoArr = (curVccu != '')? $('#hminfotools').attr('vcculist').match('(?<=^'+curVccu+':|\\s'+curVccu+':)[^\\s]+')[0].split(','): [];
+	}
+	else {
+		curVccuIoArr = [iodev]; //fake for HMdeviceTools!!!
 	}
 	
 	var aIODev = devObj.aIODev;
