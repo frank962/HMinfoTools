@@ -1,4 +1,4 @@
-FW_version["HMinfoTools.js"] = "$Id: HMinfoTools.js 2008 2022-01-09 14:57:09Z frank $";
+FW_version["HMinfoTools.js"] = "$Id: HMinfoTools.js 2009 2022-03-21 12:30:31Z frank $";
 
 var HMinfoTools_debug = true;
 var HMinfoTools_csrf;
@@ -248,7 +248,7 @@ function HMinfoTools_getAllRssiData() {
 						input.setAttribute('orgvalue',curIOgrp);
 						input.style.margin = '0px 0px 0px 0px';
 						input.style.width = '140px';
-						input.title = 'current IOgrp => ' + curIOgrp;
+						input.title = '<span style="color: red;">current IOgrp => ' +curIOgrp+ '</span>';
 						input.setAttribute('onchange','HMinfoTools_updateChangedValues("'+input.id+'")');
 						
 						var val = curVccu + ':';
@@ -408,15 +408,14 @@ function HMinfoTools_parseDevFromJson(device,data) {
 	
 	devMap.set(device,devObj);
 }
-
 function HMinfoTools_parseErrorDevices(hminfo,weblinkdiv) {
 	var cmd = 'jsonlist2 ' + hminfo;
 	if(HMinfoTools_debug) {log('HMinfoTools: ' + cmd);}
 	var url = HMinfoTools_makeCommand(cmd);
 	$.getJSON(url).done(function(data) {
 		var object = data.Results[0];
-		if(object != null && object.Internals.TYPE == 'CUL_HM' && object.Attributes.model != 'ACTIONDETECTOR') {
-			if(typeof HMdeviceTools_createRegisterTable == 'function') { //for cul_hm device details (hm.js)
+		if(object != null && object.Internals.TYPE == 'CUL_HM' && object.Attributes.model != 'ACTIONDETECTOR') {//for cul_hm device_details (hm.js)
+			if(typeof HMdeviceTools_createRegisterTable == 'function') { 
 				if(HMinfoTools_debug) {log('HMinfoTools: ' + 'HMdeviceTools is present');}
 				var isHMdeviceTools = false;
 				var isHMdeviceTools_pendingInfo = false;
@@ -506,8 +505,7 @@ function HMinfoTools_parseErrorDevices(hminfo,weblinkdiv) {
 				}
 			}
 		}
-
-		else if(object != null && object.Internals.TYPE == 'HMinfo') { //for hminfo details or weblink
+		else if(object != null && object.Internals.TYPE == 'HMinfo') {                                          //for hminfo_details or weblink
 			if(document.getElementById('hminfotools') == null) { // 1. run, we want to install basic things
 				var lastChange = ((object.Readings.lastErrChange == null)? 
 													'updated: Info_Unknown': object.Readings.lastErrChange.Value);
@@ -619,7 +617,6 @@ function HMinfoTools_parseErrorDevices(hminfo,weblinkdiv) {
 		}
 	});
 }
-
 function HMinfoTools_createHMinfoTools(hminfo,weblinkdiv,lastChange) {
 	var div = document.createElement('div');
 	var header;
@@ -631,7 +628,7 @@ function HMinfoTools_createHMinfoTools(hminfo,weblinkdiv,lastChange) {
 	}
 	else {
 		weblinkdiv.appendChild(div);
-		header = document.createElement('div');
+		header = document.createElement('span');
 		header.setAttribute('class','col_header pinHeader detail_Internals');
 	}
 	div.id = 'hminfotools';
@@ -659,7 +656,8 @@ function HMinfoTools_createHMinfoTools(hminfo,weblinkdiv,lastChange) {
 				if(isInstallationReady && areIconsLoaded && isErrDataReady) { //all icons and infos loaded
 					var errorList = $('#hminfotools').attr('errordevices_list');
 					var errorDevices = errorList.split(':')[0];
-					if(errorDevices != '') {
+					var ioInfo = document.getElementById('hminfo_ios').innerHTML;
+					if(errorDevices != '' && ioInfo != 'IO_Devices: Info_Unknown') {
 						if(HMinfoTools_debug) {log('HMinfoTools: ' + 'all data ready, new table creation!');}
 						HMinfoTools_createErrorDevicesTable(errorDevices);
 						var informDevices = (errorList.match(/:$/))? errorList.replace(/:$/,''): errorList.replace(/:/,',');
@@ -677,7 +675,12 @@ function HMinfoTools_createHMinfoTools(hminfo,weblinkdiv,lastChange) {
 							}
 						}
 					}
-					else {if(HMinfoTools_debug) {log('HMinfoTools: ' + 'all data ready, no table creation!');}}
+					else {
+						if(HMinfoTools_debug) {log('HMinfoTools: ' + 'all data ready, no table creation!');}
+						if(weblinkdiv != null && ioInfo == 'IO_Devices: Info_Unknown'){
+							setTimeout(HMinfoTools_changeInformChannel(''),1000);
+						}
+					}
 				}
 			}
 		});
@@ -789,7 +792,6 @@ function HMinfoTools_createHMinfoTools(hminfo,weblinkdiv,lastChange) {
 
 	$('#hminfotools').attr('installation','ready');
 }
-
 function HMinfoTools_setAttrDeviceMode() {
 	var hminfo = $('#hminfotools').attr('device');
 	var val = ($('#hminfotools').attr('device_mode') == 'all')? 'err': 'all';
@@ -801,7 +803,6 @@ function HMinfoTools_setAttrDeviceMode() {
 		else {location.reload();}
 	});
 }
-
 function HMinfoTools_parseIOsFromHMinfo(ioInfoRaw) {
 	var vcculist = '';
 	var iolist = '';
@@ -841,12 +842,13 @@ function HMinfoTools_parseIOsFromHMinfo(ioInfoRaw) {
 			ioInfo = ioInfo.replace(io,'<a href="/fhem?detail='+io+'"><span style="color: '+color+';">'+io+'</span></a>');
 		});
 	}
-	else {ioInfo = 'IO_Devices: Info_Unknown';} //from fhem-restart until first hminfo-update
+	else { //from fhem-restart until first hminfo-update
+		ioInfo = 'IO_Devices: Info_Unknown';
+	}
 	$('#hminfotools').attr('vcculist',vcculist);
 	$('#hminfotools').attr('iolist',iolist);
 	document.getElementById('hminfo_ios').innerHTML = ioInfo;
 }
-
 function HMinfoTools_getInfoFromErrorDevices(idStr) {
 	var deviceList;
 	var isFirstRun = ($('#'+idStr).attr('errordevices_data') == 'start')? true: false;
@@ -971,7 +973,6 @@ function HMinfoTools_getInfoFromErrorDevices(idStr) {
 		}
 	});
 }
-
 function HMinfoTools_changeInformChannel(informDevices) {
 	if($('#hminfotools').attr('device') != null) {
 		informDevices = $('#hminfotools').attr('device')+((informDevices == '')? '': ',' + informDevices);
@@ -993,9 +994,7 @@ function HMinfoTools_changeInformChannel(informDevices) {
 	setTimeout(FW_longpoll,300); // forum # 112181
 }
 
-
 //###### icons,longpoll #######################################################################################
-
 function HMinfoTools_UpdateLine(d) {
 	if(document.getElementById('hminfotools') == null && document.getElementById('HMdeviceTools_toolsTable') == null) {return;}
 	
@@ -1110,7 +1109,6 @@ function HMinfoTools_updateErrorDevicesTable(hminfo,lastChange) {
 	}
 	HMinfoTools_parseErrorDevices(hminfo,document.getElementById('hminfotools_weblink'));
 }
-
 function HMinfoTools_createErrorDevicesTable(errorDevices) {
 	var tbody = document.getElementById('hminfo_table_errDev');
 	var z = 0;
@@ -1192,7 +1190,6 @@ function HMinfoTools_loadIcons(device,td) {
 		}
 	}
 }
-
 function HMinfoTools_clickSetFunctionG(hminfo,click) { //set hminfo click function
 	var cmd = 'set '+hminfo+' '+click;
 	if(HMinfoTools_debug) {log('HMinfoTools: '+cmd);}
@@ -1202,7 +1199,6 @@ function HMinfoTools_clickSetFunctionG(hminfo,click) { //set hminfo click functi
 		else {if(click == 'clearG rssi') {location.reload();}}
 	});
 }
-
 function HMinfoTools_createIconCells(td,device) {
 	/*
 	var dummy = document.createElement('span');
@@ -1249,7 +1245,6 @@ function HMinfoTools_createIconCells(td,device) {
 		dummy.innerHTML = ' ';
 	}
 }
-
 function HMinfoTools_initIcons(device) {
 	var devObj = devMap.get(device);
 	if(device != devObj.parentDev) { //device is channelDevice
@@ -1279,8 +1274,7 @@ function HMinfoTools_initIcons(device) {
 	if(devObj.smokeDetect != '') {HMinfoTools_setIconFromSmokeDetect(device,devObj.smokeDetect);}
 }
 
-//###### icon functions for devices ##############################################################################
-
+//###### icon functions for devices ###############################################
 function HMinfoTools_setIconFromCommState(device,commState) {
 	/*
 	color       commState
@@ -1316,7 +1310,6 @@ function HMinfoTools_setIconFromCommState(device,commState) {
 		setTimeout(led.setAttribute('fill',color),300);
 	}
 }
-
 function HMinfoTools_setClearMsgEvents(device) { //click commstate
 	var parentDev = devMap.get(device).parentDev;
 	var cmd = 'set '+parentDev+' clear msgEvents';
@@ -1372,7 +1365,6 @@ function HMinfoTools_setIconFromRssi(device,rssiList) {
 		if(rssiList.match(/last:/)) {$('#icon_rssi_'+devStr+" path[d^='M1319']").css('fill','white');}
 	},300);
 }
-
 function HMinfoTools_setClearRssi(device) { //click rssi
 	var parentDev = devMap.get(device).parentDev;
 	var cmd = 'set '+parentDev+' clear rssi';
@@ -1439,7 +1431,6 @@ function HMinfoTools_getChangedIODevData(device) {
 		}
 	});
 }
-
 function HMinfoTools_setIconFromIODev(device,iodev) {
 	// color      attr IOgrp set                              attr IODev set                           none
 	// --------------------------------------------------------------------------------------------------------
@@ -1452,6 +1443,9 @@ function HMinfoTools_setIconFromIODev(device,iodev) {
 	var IOgrp = (devObj.IOgrp != 'missing_IOgrp')? devObj.IOgrp: '';
 	var curVccu = IOgrp.replace(/:.+$/,'');
 	var curVccuIoArr = []; 
+
+	//HMinfoTools.js line 1456:
+	//TypeError: $(...).attr(...).match(...) is null
 	if(document.getElementById('hminfotools') != null) { //only with hminfo
 		curVccuIoArr = (curVccu != '')? $('#hminfotools').attr('vcculist').match('(?<=^'+curVccu+':|\\s'+curVccu+':)[^\\s]+')[0].split(','): [];
 	}
@@ -1604,7 +1598,6 @@ function HMinfoTools_setIconFromCfgState(device,cfgState) {
 	}
 	
 }
-
 function HMinfoTools_setGetConfig(device) { //click cfgState
 	var cmd = 'set '+device+' getConfig';
 	if(HMinfoTools_debug) {log('HMinfoTools: ' + cmd);}
@@ -1669,7 +1662,6 @@ function HMinfoTools_setIconFromBattery(device,battery) {
 		$('#icon_battery_'+devStr+' path').css('fill',color);
 	},300);
 }
-
 function HMinfoTools_setBatteryChange(device) { //click battery
 	$('#icon_battery_' +device.replace(/\./g,'\\.')+ ' path').css('fill','white');
 	var devObj = devMap.get(device);
@@ -1799,7 +1791,6 @@ function HMinfoTools_setIconFromSabotageAttack(device,attack) {
 		easing: 'ease-in' 
 	});
 }
-
 function HMinfoTools_setClearAttack(device) { //click sabotageAttack
 	var parentDev = devMap.get(device).parentDev;
 	var cmd = 'set '+parentDev+' clear attack';
@@ -1844,8 +1835,7 @@ function HMinfoTools_setIconFromSmokeDetect(device,smokeDetect) {
 	$('#icon_smokeDetect_' +device.replace(/\./g,'\\.')+ ' path').css('fill',color);
 	$('#icon_smokeDetect_' +device.replace(/\./g,'\\.')+ ' path').css('visibility','visible');
 }
-
-//##### end => icon functions ######################################################
+//##### end => icon functions #####################################################
 
 function HMinfoTools_createScreenshot() {
 	/* https://github.com/niklasvh/html2canvas/issues/2457
