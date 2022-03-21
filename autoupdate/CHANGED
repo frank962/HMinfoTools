@@ -1,4 +1,6 @@
 HMtools repository last changes:
+  HMinfoTools 2009 2022-03-21
+  - fix typeError after fhem restart until first hminfo update
   HMinfoTools 2008 2022-01-09
   - add update info for outdated hminfo modul
   HMinfoTools 2007 2022-01-07
@@ -8,6 +10,8 @@ HMtools repository last changes:
   - some improvements for rssi-table
 
   History HMinfoTools.js:
+  2009 2022-03-21	- fix typeError after fhem restart until first hminfo update
+  2008 2022-01-09	- add update info for outdated hminfo modul
   2007 2022-01-07	- fix problems for devices using attr IODev #112825.msg1198733.html#msg1198733
   2006 2022-01-04 - fix color problems with desired-io-icon for devices using no prefered io
                   - some improvements for rssi-table
