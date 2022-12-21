@@ -1,8 +1,8 @@
-FW_version["HMinfoTools.js"] = "$Id: HMinfoTools.js 2009 2022-03-21 12:30:31Z frank $";
+FW_version["HMinfoTools.js"] = "$Id: HMinfoTools.js 2010 2022-12-21 11:16:27Z frank $";
 
 var HMinfoTools_debug = true;
 var HMinfoTools_csrf;
-var devMap = new Map();
+var HMinfoTools_devMap = new Map();
 function HMinfoTools_initMapDevice(device) {
 	var devObj = {name: device, 
 								parentDev: '', 
@@ -18,12 +18,13 @@ function HMinfoTools_initMapDevice(device) {
 								actStatus: '',
 								activity: '',
 								battery: '',
+								batNotOkCtr: '',
 								motorErr: '',
 								sabotageError: '',
 								sabotageAttack: '',
 								smokeDetect: ''
 	};
-	devMap.set(device,devObj);
+	HMinfoTools_devMap.set(device,devObj);
 }
 var HMinfoTools_icons = [
 	{name: 'commState',poll: 'parent',svg: 'rc_dot',colorElements: ['path'],clickG: 'clearG msgErrors',click: 'HMinfoTools_setClearMsgEvents'},
@@ -99,7 +100,7 @@ function HMinfoTools_getAllRssiData() {
 			var div = $("<div id='HMinfoTools_Dialog'>");
 			$(div).html('rssi table' + '<br><br>');
 			$("body").append(div);
-			$(div).tooltip();
+			//$(div).tooltip({color: 'red'});
 			// rssi table
 			var table = document.createElement('table');
 			$(div).append(table);
@@ -125,8 +126,8 @@ function HMinfoTools_getAllRssiData() {
 			var deviceCnt = 0;
 			rssiMap.forEach(function(value,key,map) {
 				++deviceCnt;
-				var curIODev = (devMap.has(key))? devMap.get(key).IODev: '';
-				var curIOgrp = (devMap.has(key) && devMap.get(key).IOgrp != 'missing_IOgrp')? devMap.get(key).IOgrp: '';
+				var curIODev = (HMinfoTools_devMap.has(key))? HMinfoTools_devMap.get(key).IODev: '';
+				var curIOgrp = (HMinfoTools_devMap.has(key) && HMinfoTools_devMap.get(key).IOgrp != 'missing_IOgrp')? HMinfoTools_devMap.get(key).IOgrp: '';
 				var curVccu = curIOgrp.replace(/:.+$/,'');
 				var curVccuIoArr = (curVccu != '')? $('#hminfotools').attr('vcculist').match('(?<=^'+curVccu+':|\\s'+curVccu+':)[^\\s]+')[0].split(','): [];
 
@@ -248,7 +249,8 @@ function HMinfoTools_getAllRssiData() {
 						input.setAttribute('orgvalue',curIOgrp);
 						input.style.margin = '0px 0px 0px 0px';
 						input.style.width = '140px';
-						input.title = '<span style="color: red;">current IOgrp => ' +curIOgrp+ '</span>';
+//						input.title = '<span style="color: red;">current IOgrp => ' +curIOgrp+ '</span>';
+						input.title = 'current IOgrp => ' +curIOgrp;
 						input.setAttribute('onchange','HMinfoTools_updateChangedValues("'+input.id+'")');
 						
 						var val = curVccu + ':';
@@ -362,11 +364,11 @@ function HMinfoTools_setAttrIOgrp() {
 */
 
 function HMinfoTools_parseDevFromJson(device,data) {
-	var devObj = devMap.get(device);
+	var devObj = HMinfoTools_devMap.get(device);
 	//parentDev
 	devObj.parentDev = (data.Internals.DEF.length == 6)? data.Internals.NAME: data.Internals.device;
 	//model
-	devObj.model = (data.Attributes.model != null)? data.Attributes.model: 'missing_model';
+	devObj.model = (data.Attributes.model != null && data.Attributes.model != '')? data.Attributes.model: 'missing_model';
 	//commState
 	devObj.commState = (data.Readings.commState != null)? data.Readings.commState.Value: 'Info_Unknown';
 	//rssi
@@ -397,6 +399,8 @@ function HMinfoTools_parseDevFromJson(device,data) {
 	else {devObj.activity = 'unused';}
 	//battery
 	if(data.Readings.battery != null) {devObj.battery = data.Readings.battery.Value;}
+	//batNotOkCtr
+	if(data.Readings.batNotOkCtr != null) {devObj.batNotOkCtr = data.Readings.batNotOkCtr.Value;}
 	//motorErr
 	if(data.Readings.motorErr != null) {devObj.motorErr = data.Readings.motorErr.Value;}
 	//sabotage
@@ -406,7 +410,7 @@ function HMinfoTools_parseDevFromJson(device,data) {
 	//smokeDetect
 	if(data.Readings.smoke_detect != null) {devObj.smokeDetect = data.Readings.smoke_detect.Value;}
 	
-	devMap.set(device,devObj);
+	HMinfoTools_devMap.set(device,devObj);
 }
 function HMinfoTools_parseErrorDevices(hminfo,weblinkdiv) {
 	var cmd = 'jsonlist2 ' + hminfo;
@@ -460,7 +464,9 @@ function HMinfoTools_parseErrorDevices(hminfo,weblinkdiv) {
 									HMinfoTools_createIconCells(document.getElementById('HMdeviceTools_toolsTable_icons'),object.Internals.NAME); 
 									HMinfoTools_initIcons(object.Internals.NAME); 
 									var informDevices = (errorList.match(/:$/))? errorList.replace(/:$/,''): errorList.replace(/:/,',');
-									setTimeout(HMinfoTools_changeInformChannel(informDevices),1000);
+									if(informDevices != object.Internals.NAME) {
+										setTimeout(HMinfoTools_changeInformChannel(informDevices),1000);
+									}
 								}
 							}
 						}
@@ -525,13 +531,12 @@ function HMinfoTools_parseErrorDevices(hminfo,weblinkdiv) {
 			}
 			HMinfoTools_parseIOsFromHMinfo(object.Internals.iI_HM_IOdevices);
 			
-			/*search for devices with errors: CRI_, ERR_, W_
+			/*search for entities with errors: CRI_, ERR_, W_ (sort order in hminfo internals)
 			"iCRI__protocol":"SwitchPBU06",
 			"iERR___rssiCrit":"Thermostat.Keller",
 			"iERR__actDead":"SwitchUP01",
 			"iERR__protocol":"Ventil.AZ.Nord,Ventil.AZ.West,Ventil.Bad,Ventil.Kueche,Ventil.WZ",
-			"iERR_battery":"Thermostat.WZ",
-			"iERR_sabotageError":"Tuer.SZ",
+			"iERR_battery_low":"Thermostat.WZ",
 			"iW__protoNames":"DimUP01",
 			"iW__unreachNames":"DimPBU01_Sw1_V01,DimPBU01_Sw1_V02,SwitchPBU01_Sw_02"
 			*/
@@ -539,27 +544,101 @@ function HMinfoTools_parseErrorDevices(hminfo,weblinkdiv) {
 			var internalsString = JSON.stringify(object.Internals);
 			var mErrorInternal = internalsString.match(/i(?:CRI_|ERR_|W_)[^"]+/g);
 			if(mErrorInternal != null) {
-				for(var i = 0; i < mErrorInternal.length; ++i) {
-					if(object.Internals[mErrorInternal[i]] != undefined) {
-						var devices = object.Internals[mErrorInternal[i]].split(','); 
+				var cat1Arr = ["CRI","ERR","W"];
+				var cat2Arr = ["_","__","___"]; //reverse to hminfo internals order
+				var nameArr = ["actDead","protocol","rssiCrit","unreachNames","protoNames"];
+				var sumErrArr = ((object.Attributes.sumERROR != null)? object.Attributes.sumERROR.match(/(?:^|,)[^:]+/g): []); 
+				sumErrArr.forEach((reading, idx, arr) => {arr[idx] = reading.replace(/,/g,'');});
+				var mErrorInternalSorted = mErrorInternal.map((err) => {
+					var test = err.match(/^i([^_]+)([_]+)(.+)$/);
+					var cat3Val = 99;
+					var errName = '';
+					var errVal = '';
+					var errType = 'string';
+					if(nameArr.includes(test[3])) {
+						cat3Val = nameArr.indexOf(test[3]);
+						errName = test[3];
+					}
+					else {
+						cat3Val = sumErrArr.findIndex((reading) => {
+							var r = test[3].substring(0,reading.length);
+							return (reading == r);
+						});
+						errName = sumErrArr[cat3Val];
+						errVal = test[3].replace(errName+'_','');
+						if(errVal == +errVal) {
+							errVal = parseInt(errVal);
+							errType = 'integer';
+						}
+					}
+					return { cat1:  cat1Arr.indexOf(test[1]),
+									 cat2:  cat2Arr.indexOf(test[2]),
+									 cat3:  cat3Val,
+									 name:  errName, 
+									 value: errVal, 
+									 vType: errType, 
+									 error: err}; 
+				});
+				mErrorInternalSorted.sort((a,b) => {
+					if(a.cat1 > b.cat1) {return 1;}
+					if(a.cat1 < b.cat1) {return -1;}
+					if(a.cat2 > b.cat2) {return 1;}
+					if(a.cat2 < b.cat2) {return -1;}
+					if(a.cat3 > b.cat3) {return 1;}
+					if(a.cat3 < b.cat3) {return -1;}
+					if(a.vType === 'integer' && b.vType === 'integer') {
+						if(a.value < b.value) {return 1;}
+						if(a.value > b.value) {return -1;}
+					}
+					if(a.value > b.value) {return 1;}
+					if(a.value < b.value) {return -1;}
+					return 0;
+				});
+				var result = mErrorInternalSorted.map((item) => {return item.error;});
+				
+				for(var i = 0; i < result.length; ++i) {
+					if(object.Internals[result[i]] != undefined) {
+						var devices = object.Internals[result[i]].split(','); 
 						for(var d = 0; d < devices.length; ++d) {
 							var devObj = {};
-							if(!devMap.has(devices[d])) {
-								errorDevices += devices[d] +',';
+							if(!HMinfoTools_devMap.has(devices[d])) {
+								//errorDevices += devices[d] +',';
 								HMinfoTools_initMapDevice(devices[d]);
-								devObj = devMap.get(devices[d]);
-								devObj.errors = [mErrorInternal[i]];
+								devObj = HMinfoTools_devMap.get(devices[d]);
+								devObj.errors = [result[i]];
 							}
 							else {
-								devObj = devMap.get(devices[d]);
-								devObj.errors.push(mErrorInternal[i]);
+								devObj = HMinfoTools_devMap.get(devices[d]);
+								devObj.errors.push(result[i]);
 							}
-							devMap.set(devices[d],devObj);
+							HMinfoTools_devMap.set(devices[d],devObj);
 						}
 					}
 				}
+				var devErrArr = [];
+				HMinfoTools_devMap.forEach((value,key) => {
+					devErrArr.push({name: key, errors: value.errors});
+				});
+				devErrArr.sort((a,b) => {
+					var aL = a.errors.length;
+					var bL = b.errors.length;
+					var errMax = (aL > bL)? aL: bL;
+					for(var e = 0; e < errMax; ++e) {
+						var ax = result.indexOf(a.errors[e]);
+						var bx = result.indexOf(b.errors[e]);
+						if(ax != -1 && bx != -1) {
+							if(ax > bx) {return 1;}
+							if(ax < bx) {return -1;}
+						}
+						if(ax == -1 && bx != -1) {return 1;}
+						if(ax != -1 && bx == -1) {return -1;}
+					}
+					return 0;		
+				});
+				devErrArr.forEach((device) => {
+					errorDevices += device.name +',';
+				});
 			}
-
 			if($('#hminfotools').attr('device_mode') == 'all') { //all devices w/o problems
 				var cmd = 'list TYPE=CUL_HM:FILTER=DEF=......:FILTER=DEF!=000000 i:NAME';
 				if(HMinfoTools_debug) {log('HMinfoTools: ' + cmd);}
@@ -573,7 +652,7 @@ function HMinfoTools_parseErrorDevices(hminfo,weblinkdiv) {
 							if(lines[l] != '') {
 								var device = lines[l].match(/[^\s]+$/)[0];
 								deviceList += device + ',';
-								if(!devMap.has(device)) {
+								if(!HMinfoTools_devMap.has(device)) {
 									errorDevices += device + ',';
 									HMinfoTools_initMapDevice(device);
 								}
@@ -823,7 +902,8 @@ function HMinfoTools_parseIOsFromHMinfo(ioInfoRaw) {
 	}
 	else if(ioInfoRaw != null && ioInfoRaw.match(/>/)) { //new hminfo version
 		//iI_HM_IOdevices     ccu>Initialized:cul868;ok:hmlan1,hmuart1; noVccu>dummy:hmusb2; vccu2>dummy:hmusb1;
-		ioInfoRaw.split(' ').forEach(function(vccuStr) {
+		var vccuStrArr = ioInfoRaw.split(' ');
+		vccuStrArr.forEach(function(vccuStr) {
 			var vccu = vccuStr.replace(/>.*$/,'');
 			if(vccu != 'noVccu') {
 				var vccuIOs = vccuStr.match(/(?<=:|,)[^,;]+/g);
@@ -863,9 +943,9 @@ function HMinfoTools_getInfoFromErrorDevices(idStr) {
 			devices = deviceList.split(',');
 			for(var d = 0; d < devices.length; ++d) {
 				HMinfoTools_initMapDevice(devices[d]);
-				var newObj = devMap.get(devices[d]);
+				var newObj = HMinfoTools_devMap.get(devices[d]);
 				newObj.parentDev = devices[d];
-				devMap.set(devices[d],newObj);
+				HMinfoTools_devMap.set(devices[d],newObj);
 			}
 		}
 		else {
@@ -874,8 +954,6 @@ function HMinfoTools_getInfoFromErrorDevices(idStr) {
 		}
 	}
 	
-	//var ios = document.getElementById('hminfotools').getAttribute('iolist').split(',');
-	//var test2 = Array.from(devMap.values());
 	var iolist = document.getElementById(idStr).getAttribute('iolist');
 	var ios = iolist.split(',');
 	var cmd = 'list ' +deviceList+ ' i:DEF i:device ';
@@ -889,6 +967,7 @@ function HMinfoTools_getInfoFromErrorDevices(idStr) {
 	cmd += 'a:IOgrp ';
 	cmd += 'a:IODev ';
 	cmd += 'r:battery ';
+	cmd += 'r:batNotOkCtr ';
 	cmd += 'r:motorErr ';
 	cmd += 'r:smoke_detect ';
 	cmd += 'r:cfgState ';
@@ -915,7 +994,7 @@ function HMinfoTools_getInfoFromErrorDevices(idStr) {
 				var line = lines[l];
 				if(line.match(/\sDEF\s/)) {
 					var device = line.match(/^[^\s]+/)[0];
-					devObj = devMap.get(device);
+					devObj = HMinfoTools_devMap.get(device);
 					devObj.name = device;
 					if(line.match(/[^\s]+$/)[0].length == 6) {devObj.parentDev = devObj.name;}
 				}
@@ -933,6 +1012,7 @@ function HMinfoTools_getInfoFromErrorDevices(idStr) {
 				else if(line.match(/\sIOgrp\s/)) {devObj.IOgrp = line.match(/[^\s]*$/)[0];}
 				else if(line.match('\\srssi_at_' +devObj.IODev+ '\\s')) {devObj.rssi = line.match(/cnt:.+$/)[0];}
 				else if(line.match(/\sbattery\s/)) {devObj.battery = line.match(/[^\s]*$/)[0];}
+				else if(line.match(/\sbatNotOkCtr\s/)) {devObj.batNotOkCtr = line.match(/[^\s]*$/)[0];}
 				//								 2021-01-06 14:42:48   motorErr        adjusting range too small  //err: parse only "small"
 				else if(line.match(/\smotorErr\s/)) {devObj.motorErr = line.match(/[^\s]*$/)[0];}
 				else if(line.match(/\ssmoke_detect\s/)) {devObj.smokeDetect = line.match(/[^\s]*$/)[0];}
@@ -947,9 +1027,11 @@ function HMinfoTools_getInfoFromErrorDevices(idStr) {
 					}
 					else { //current device is parentDevice
 						if(devObj.commState == '') {devObj.commState = 'Info_Unknown';}
-						if(devObj.actCycle != '') {
+						if(devObj.actCycle == '') {devObj.actCycle = 'unknown';}
+						if(devObj.actStatus == '') {devObj.actStatus = 'unknown';}
+						if(devObj.actCycle != 'unknown') {
 							if(devObj.actCycle == '000:00') {devObj.activity = 'switchedOff';}
-							else {devObj.activity = ((devObj.actStatus != '')? devObj.actStatus: 'unknown');}
+							else {devObj.activity = devObj.actStatus;}
 						}
 						else {devObj.activity = 'unused';}
 						if(devObj.IODev == '' || devObj.IODev.match(/^helper=HASH\(/)) {devObj.IODev = 'missing_IODev';}
@@ -959,7 +1041,7 @@ function HMinfoTools_getInfoFromErrorDevices(idStr) {
 					}
 					if(devObj.model == '') {devObj.model = 'missing_model';}
 					if(devObj.cfgState == '') {devObj.cfgState = 'Info_Unknown';}
-					devMap.set(devObj.name,devObj);
+					HMinfoTools_devMap.set(devObj.name,devObj);
 				}
 			}
 			
@@ -1018,7 +1100,7 @@ function HMinfoTools_UpdateLine(d) {
 		var evtDevice = d[0].match(/^[^-]+/)[0];
 		$("[id^='icon_rssi_'][pollid='" +evtDevice+ "']").each(function() {
 			var errDevice = this.id.replace(/icon_rssi_/,'');
-			var io = devMap.get(errDevice).IODev;
+			var io = HMinfoTools_devMap.get(errDevice).IODev;
 			if(d[0].match('-rssi_at_' +io+ '$')) {
 				HMinfoTools_setIconFromRssi(errDevice,'rssi_at_' +io+ ' => last: ' +d[1]);
 			}
@@ -1027,7 +1109,7 @@ function HMinfoTools_UpdateLine(d) {
 	}
 	if(d[0].match(/-IODev$/)) {
 		var evtDevice = d[0].match(/^[^-]+/)[0];
-		if(devMap.has(evtDevice) && d[1] != devMap.get(evtDevice).IODev) { //io change
+		if(HMinfoTools_devMap.has(evtDevice) && d[1] != HMinfoTools_devMap.get(evtDevice).IODev) { //io change
 			HMinfoTools_getChangedIODevData(evtDevice);
 		}
 		return;
@@ -1044,7 +1126,21 @@ function HMinfoTools_UpdateLine(d) {
 		var evtDevice = d[0].match(/^[^-]+/)[0];
 		$("[id^='icon_battery_'][pollid='" +evtDevice+ "']").each(function() {
 			var errDevice = this.id.replace(/icon_battery_/,'');
+			var devObj = HMinfoTools_devMap.get(errDevice);
+			devObj.battery = d[1];
+			HMinfoTools_devMap.set(errDevice, devObj);
 			HMinfoTools_setIconFromBattery(errDevice,d[1]);
+		});
+		return;
+	}
+	if(d[0].match(/-batNotOkCtr$/)) {
+		var evtDevice = d[0].match(/^[^-]+/)[0];
+		$("[id^='icon_battery_'][pollid='" +evtDevice+ "']").each(function() {
+			var errDevice = this.id.replace(/icon_battery_/,'');
+			var devObj = HMinfoTools_devMap.get(errDevice);
+			devObj.batNotOkCtr = d[1];
+			HMinfoTools_devMap.set(errDevice, devObj);
+			HMinfoTools_setIconFromBattery(errDevice,devObj.battery);
 		});
 		return;
 	}
@@ -1098,7 +1194,7 @@ function HMinfoTools_UpdateLine(d) {
 }
 
 function HMinfoTools_updateErrorDevicesTable(hminfo,lastChange) {
-	devMap.clear();
+	HMinfoTools_devMap.clear();
 	document.getElementById('hminfo_table_errDev').innerHTML = '';
 	document.getElementById('hminfo_info').innerHTML = ' => updating...';
 	if(lastChange != '') {
@@ -1132,7 +1228,7 @@ function HMinfoTools_createErrorDevicesTable(errorDevices) {
 		td.innerHTML = '<a href="/fhem?detail=' +device+ '"><span style="color: '+color+';">' +device+ '</span></a>';
 		var td = document.createElement('td');
 		tr.appendChild(td);
-		var errors = devMap.get(device).errors;
+		var errors = HMinfoTools_devMap.get(device).errors;
 		td.innerHTML = errors.join(', ');
 	}
 	$("[id^='hminfo_devRow_']").each(function() {
@@ -1217,10 +1313,10 @@ function HMinfoTools_createIconCells(td,device) {
 			iconCell.style.cursor = 'pointer';
 			iconCell.setAttribute('onclick',iconClick +"('"+ device + "')");
 		}
-		iconCell.setAttribute('pollid',((iconPoll == 'parent')? devMap.get(device).parentDev: device));
+		iconCell.setAttribute('pollid',((iconPoll == 'parent')? HMinfoTools_devMap.get(device).parentDev: device));
 		iconCell.innerHTML = document.getElementById('icon_' +iconName+ '_hminfo').innerHTML;
 		var idStr = iconCell.id.replace(/\./g,'\\.');
-		if(iconName == 'Activity' && devMap.get(device).model.match(/^(missing_model|CCU-FHEM|VIRTUAL)$/)) { //virtual device
+		if(iconName == 'Activity' && HMinfoTools_devMap.get(device).model.match(/^(missing_model|CCU-FHEM|VIRTUAL)$/)) { //virtual device
 			$('#' +idStr+ ' path').css('visibility','hidden');
 		}
 		else if(iconName == 'battery') {
@@ -1246,9 +1342,9 @@ function HMinfoTools_createIconCells(td,device) {
 	}
 }
 function HMinfoTools_initIcons(device) {
-	var devObj = devMap.get(device);
+	var devObj = HMinfoTools_devMap.get(device);
 	if(device != devObj.parentDev) { //device is channelDevice
-		var parObj = devMap.get(devObj.parentDev);
+		var parObj = HMinfoTools_devMap.get(devObj.parentDev);
 		devObj.commState = parObj.commState;
 		devObj.activity = parObj.activity;
 		devObj.rssi = parObj.rssi;
@@ -1256,9 +1352,10 @@ function HMinfoTools_initIcons(device) {
 		devObj.aIODev = parObj.aIODev;
 		devObj.IOgrp = parObj.IOgrp;
 		devObj.battery = parObj.battery;
+		devObj.batNotOkCtr = parObj.batNotOkCtr;
 		devObj.sabotageError = parObj.sabotageError;
 		devObj.sabotageAttack = parObj.sabotageAttack;
-		devMap.set(devObj.name,devObj);
+		HMinfoTools_devMap.set(devObj.name,devObj);
 	}
 	//all entities use these icons
 	HMinfoTools_setIconFromCommState(device,devObj.commState);
@@ -1293,7 +1390,7 @@ function HMinfoTools_setIconFromCommState(device,commState) {
 	else if(commState.match(/^CMDs_done_Errors:/)) {color = 'red';}
 	
 	var iconCommState = document.getElementById('icon_commState_' + device);
-	iconCommState.title = 'commState: ' +commState+ '\non click => set ' +devMap.get(device).parentDev+ ' clear msgEvents';
+	iconCommState.title = 'commState: ' +commState+ '\non click => set ' +HMinfoTools_devMap.get(device).parentDev+ ' clear msgEvents';
 
 	var led = iconCommState.querySelector('path');
 	var blinkLed = led.animate([{fill: color},{fill: 'black'}], {
@@ -1311,7 +1408,7 @@ function HMinfoTools_setIconFromCommState(device,commState) {
 	}
 }
 function HMinfoTools_setClearMsgEvents(device) { //click commstate
-	var parentDev = devMap.get(device).parentDev;
+	var parentDev = HMinfoTools_devMap.get(device).parentDev;
 	var cmd = 'set '+parentDev+' clear msgEvents';
 	if(HMinfoTools_debug) {log('HMinfoTools: ' + cmd);}
 	var url = HMinfoTools_makeCommand(cmd);
@@ -1355,7 +1452,7 @@ function HMinfoTools_setIconFromRssi(device,rssiList) {
 	}
 	
 	var iconRssi = document.getElementById('icon_rssi_' + device);
-	iconRssi.title = rssiList + '\non click => set ' +devMap.get(device).parentDev+ ' clear rssi';
+	iconRssi.title = rssiList + '\non click => set ' +HMinfoTools_devMap.get(device).parentDev+ ' clear rssi';
 
 	var devStr = device.replace(/\./g,'\\.');
 	var bColor = $('#icon_rssi_' + devStr).css('background-color');
@@ -1366,7 +1463,7 @@ function HMinfoTools_setIconFromRssi(device,rssiList) {
 	},300);
 }
 function HMinfoTools_setClearRssi(device) { //click rssi
-	var parentDev = devMap.get(device).parentDev;
+	var parentDev = HMinfoTools_devMap.get(device).parentDev;
 	var cmd = 'set '+parentDev+' clear rssi';
 	if(HMinfoTools_debug) {log('HMinfoTools: ' + cmd);}
 	var url = HMinfoTools_makeCommand(cmd);
@@ -1399,7 +1496,7 @@ function HMinfoTools_getChangedIODevData(device) {
 	$.get(url,function(data) {
 		var object = data.Results[0];
 		if(object) {
-			var devObj = devMap.get(device);
+			var devObj = HMinfoTools_devMap.get(device);
 			devObj.IODev = (object.Internals.IODev != null)
 												? object.Internals.IODev
 												: 'missing_IODev';
@@ -1413,17 +1510,17 @@ function HMinfoTools_getChangedIODevData(device) {
 			devObj.rssi = 'rssi_at_'+devObj.IODev+' => ' + ((internalsString.match('rssi_at_'+devObj.IODev))
 																												? object.Internals['rssi_at_'+devObj.IODev]
 																												: 'missing_rssi');
-			devMap.set(device,devObj);
+			HMinfoTools_devMap.set(device,devObj);
 
 			$("[id^='icon_IODev_'][pollid='" +device+ "']").each(function() {
 				var errDevice = this.id.replace(/icon_IODev_/,'');
 				if(errDevice != device) {
-					var errDevObj = devMap.get(errDevice);
+					var errDevObj = HMinfoTools_devMap.get(errDevice);
 					errDevObj.IODev = devObj.IODev;
 					errDevObj.aIODev = devObj.aIODev;
 					errDevObj.IOgrp = devObj.IOgrp;
 					errDevObj.rssi = devObj.rssi;
-					devMap.set(errDevice,errDevObj);
+					HMinfoTools_devMap.set(errDevice,errDevObj);
 				}
 				HMinfoTools_setIconFromIODev(errDevice,devObj.IODev);
 				HMinfoTools_setIconFromRssi(errDevice,devObj.rssi);
@@ -1439,7 +1536,7 @@ function HMinfoTools_setIconFromIODev(device,iodev) {
 	// yellow     2. prefered
 	// orange     no prefered
 	// red        no poolmember, missing_IODev                reading != attr, missing_IODev           only red
-	var devObj = devMap.get(device);
+	var devObj = HMinfoTools_devMap.get(device);
 	var IOgrp = (devObj.IOgrp != 'missing_IOgrp')? devObj.IOgrp: '';
 	var curVccu = IOgrp.replace(/:.+$/,'');
 	var curVccuIoArr = []; 
@@ -1491,8 +1588,6 @@ function HMinfoTools_setIconFromIODev(device,iodev) {
 	var bColor = $('#icon_IODev_' + devStr).css('background-color');
 	$('#icon_IODev_' +devStr+ ' path').css('fill',bColor);
 	//$('#icon_IODev_' +devStr+ ' path').animate({fill: color},1500);
-
-
 	setTimeout(function(){
 		$('#icon_IODev_' +devStr+ ' path').css('fill',color);
 	},50);
@@ -1537,7 +1632,7 @@ function HMinfoTools_setIconFromCfgState(device,cfgState) {
 
 	var iconCfgState = document.getElementById('icon_cfgState_' + device);
 	var clickFunction;
-	if(devMap.get(device).model.match(/^(missing_model|CCU-FHEM|VIRTUAL)$/)) {clickFunction = '';}
+	if(HMinfoTools_devMap.get(device).model.match(/^(missing_model|CCU-FHEM|VIRTUAL)$/)) {clickFunction = '';}
 	else {
 		clickFunction = '\non click => set ' +device+ ' getConfig';
 		iconCfgState.style.cursor = 'pointer';
@@ -1628,15 +1723,18 @@ function HMinfoTools_setIconFromActivity(device,activity) {
 }
 
 function HMinfoTools_setIconFromBattery(device,battery) {
-	// color     battery
-	// --------------------------
-	// green     ok
-	// orange    low
+	// color     battery     batNotOkCtr
+	// -------------------------------------
+	// green     ok          =0, =''
+	// yellow    ok          >0
+	// orange    low         
 	// red       critical
 	var devStr = device.replace(/\./g,'\\.');
 	var color = 'white';
+	var batNotOkCtr = HMinfoTools_devMap.get(device).batNotOkCtr;
+	var batNotOkCtrStr = (batNotOkCtr == '')? '': '\nbatNotOkCtr: '+batNotOkCtr;
 	if(battery == 'ok') {
-		color = 'lime';
+		color = (batNotOkCtr == '' || batNotOkCtr == 0)? 'lime': 'yellow';
 		$('#icon_battery_'+devStr+" path[id='path23']").show();
 		$('#icon_battery_'+devStr+" path[id='path27']").show();
 	}
@@ -1651,22 +1749,24 @@ function HMinfoTools_setIconFromBattery(device,battery) {
 		$('#icon_battery_'+devStr+" path[id='path27']").hide();
 	}
 	
-	$('#icon_battery_' +devStr).css('cursor','pointer');
-	$('#icon_battery_' +devStr).attr('onclick',"HMinfoTools_setBatteryChange('"+devStr+"')");
-	$('#icon_battery_' +devStr).attr('title','battery: '+battery+ '\non click => edit: attr ' +devMap.get(device).parentDev+ ' comment');
+	$('#icon_battery_'+devStr).css('cursor','pointer');
+	$('#icon_battery_'+devStr).attr('onclick',"HMinfoTools_setBatteryChange('"+devStr+"')");
+	$('#icon_battery_'+devStr).attr('title','battery: '+battery+
+	                                         batNotOkCtrStr+
+	                                        '\non click => edit: attr '+HMinfoTools_devMap.get(device).parentDev+' comment');
 
-	var bColor = $('#icon_battery_' + devStr).css('background-color');
-	$('#icon_battery_' +devStr+ ' path').css('fill',bColor);
-	$('#icon_battery_' +devStr+ ' path').css('visibility','visible');
-	setTimeout(function(){
+//	var bColor = $('#icon_battery_'+devStr).css('background-color');
+//	$('#icon_battery_'+devStr+' path').css('fill',bColor);
+//	setTimeout(function(){
 		$('#icon_battery_'+devStr+' path').css('fill',color);
-	},300);
+//	},300);
+	$('#icon_battery_'+devStr+' path').css('visibility','visible');
 }
 function HMinfoTools_setBatteryChange(device) { //click battery
-	$('#icon_battery_' +device.replace(/\./g,'\\.')+ ' path').css('fill','white');
-	var devObj = devMap.get(device);
+	$('#icon_battery_'+device.replace(/\./g,'\\.')+' path').css('fill','white');
+	var devObj = HMinfoTools_devMap.get(device);
 	var cmd = 'jsonlist2 '+devObj.parentDev;
-	if(HMinfoTools_debug) {log('HMinfoTools: ' + cmd);}
+	if(HMinfoTools_debug) {log('HMinfoTools: '+cmd);}
 	var url = HMinfoTools_makeCommand(cmd);
 	$.get(url,function(data) {
 		var object = data.Results[0];
@@ -1677,7 +1777,7 @@ function HMinfoTools_setBatteryChange(device) { //click battery
 			var ts = d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2)+' '+
 							('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2)+':'+('0'+d.getSeconds()).slice(-2);
 			devObj.battery = object.Readings.battery.Value;
-			devMap.set(device,devObj);
+			HMinfoTools_devMap.set(device,devObj);
 			var batNotOkFirstTime = (object.Readings.batNotOkFirstTime != null && 
 				object.Readings.batNotOkFirstTime.Value.match(/^[0-9]{4}-[0-9]{2}-[0-9]{2}\s[0-9]{2}:[0-9]{2}:[0-9]{2}$/))? 
 				object.Readings.batNotOkFirstTime.Value: object.Readings.battery.Time;
@@ -1703,20 +1803,20 @@ function HMinfoTools_setBatteryChange(device) { //click battery
 				var comment = $('#hminfotools_batchange').val();
 				var cmd;
 				if(oldComment == null && comment == '') {return;}
-				else if(oldComment != null && comment == '') {cmd = 'deleteattr ' +devObj.parentDev+ ' comment';}
+				else if(oldComment != null && comment == '') {cmd = 'deleteattr '+devObj.parentDev+' comment';}
 				else {
-					cmd = 'attr ' +devObj.parentDev+ ' comment ' + comment;
-					if(object.Readings.batNotOkCtr != null) {cmd += ';setreading ' +devObj.parentDev+ ' batNotOkCtr 0';}
+					cmd = 'attr '+devObj.parentDev+' comment '+comment;
+					if(object.Readings.batNotOkCtr != null) {cmd += ';setreading '+devObj.parentDev+' batNotOkCtr 0';}
 				}
-				if(HMinfoTools_debug) {log('HMinfoTools: ' + cmd);}
+				if(HMinfoTools_debug) {log('HMinfoTools: '+cmd);}
 				var url = HMinfoTools_makeCommand(cmd);
 				$.get(url,function(data) {if(data) {FW_okDialog(data);}});
 			}
 			$(div).dialog({
 				dialogClass:"no-close", modal:true, width:"auto", closeOnEscape:true, 
 				maxWidth:$(window).width()*0.9, maxHeight:$(window).height()*0.9,
-				buttons: [{text:"Yes", click:function(){ doEntry(); doClose();}},
-									{text:"No",  click:function(){ doClose();}}]
+				buttons: [{text:"Ok", click:function(){ doEntry(); doClose();}},
+									{text:"Cancel",  click:function(){ doClose();}}]
 			});
 		}
 		else {
@@ -1761,7 +1861,7 @@ function HMinfoTools_setIconFromSabotageAttack(device,attack) {
 	
 	var devStr = device.replace(/\./g,'\\.');
 	$('#icon_sabotageAttack_'+devStr).attr('title','sabotageAttack_ErrIoAttack_cnt: ' + attack
-																					+ '\non click => set ' +devMap.get(device).parentDev+ ' clear attack');
+																					+ '\non click => set ' +HMinfoTools_devMap.get(device).parentDev+ ' clear attack');
 	$('#icon_sabotageAttack_'+devStr).css('cursor','pointer');
 	$('#icon_sabotageAttack_'+devStr).attr('onclick',"HMinfoTools_setClearAttack('"+devStr+"')");
 	$('#icon_sabotageAttack_'+devStr+' path').css('fill',color);
@@ -1792,7 +1892,7 @@ function HMinfoTools_setIconFromSabotageAttack(device,attack) {
 	});
 }
 function HMinfoTools_setClearAttack(device) { //click sabotageAttack
-	var parentDev = devMap.get(device).parentDev;
+	var parentDev = HMinfoTools_devMap.get(device).parentDev;
 	var cmd = 'set '+parentDev+' clear attack';
 	if(HMinfoTools_debug) {log('HMinfoTools: ' + cmd);}
 	var url = HMinfoTools_makeCommand(cmd);
@@ -1861,9 +1961,10 @@ function HMinfoTools_createScreenshot() {
 			logging: false, 
 			width: tabRect.width,
 			height: tabRect.height,
-			x: 192,
-			y: 93
-		}).then(canvas => {
+			//x: 192, //version 1.0.0_rc7
+			//y: 93 //version 1.0.0_rc7
+			x: 0,
+			y: 0		}).then(canvas => {
 			var dataURL = canvas.toDataURL('image/png');
 			//var cmd = "{HMinfoTools_saveScreenshot("+encodeURIComponent(user)+")}";
 			var cmd = "{HMinfoTools_saveScreenshot('test')}";

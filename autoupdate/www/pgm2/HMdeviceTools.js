@@ -1,4 +1,4 @@
-FW_version["HMdeviceTools.js"] = "$Id: HMdeviceTools.js 1003 2022-01-04 16:24:18Z frank $";
+FW_version["HMdeviceTools.js"] = "$Id: HMdeviceTools.js 1004 2022-10-31 12:56:46Z frank $";
 
 var HMdeviceTools_debug = true;
 var csrf;
@@ -28,12 +28,7 @@ $(document).ready(function() {
 			var object = data.Results[0];
 			// we add the actions for CUL_HM only
 			if(object != null && object.Internals.TYPE == 'CUL_HM' && object.Attributes.model != 'ACTIONDETECTOR') {
-				var isParentDev = true;
-				if(object.Internals.DEF.length == 8) {
-					isParentDev = false;
-					//var devspec = object.Internals.device +','+ object.Internals.NAME;
-					//body.setAttribute('longpollfilter',devspec);
-				}
+				var isParentDev = (object.Internals.DEF.length == 8)? false: true; 
 				HMdeviceTools_createRegisterTable(object,isParentDev);
 			}
 		});
@@ -314,7 +309,7 @@ function HMdeviceTools_changeRegister (device,peer) {
 			output.style.resize = 'none';
 			output.style.backgroundColor = 'white';
 			output.style.color = 'black';
-			if(missedVal != 'Some register values are not verified!') {
+			if(regCtr == 0 || missedVal != 'Some register values are not verified!') {
 				missedVal += "<br><br>Please read the values first with 'set " +device+ " getConfig'";
 				FW_okDialog(missedVal);
 				HMdeviceTools_cancelPopup();
@@ -1242,7 +1237,7 @@ function HMdeviceTools_parseTemplateFromTemplateList(device,peer,template) {
 					newReg.parId = '';
 					newReg.master = false;
 					var regRow = document.getElementById('hm_reg_row_' + regName);
-					regRow.classList.add('template');
+					regRow.classList.add('template'); //todo: TypeError: regRow is null (getconfig pending)
 					var inpRegUse = document.getElementById('hm_tplt_reg_' + regName);
 					inpRegUse.value = 'on';
 					var inpRegVal = document.getElementById('hm_reg_val_' + regName);
