@@ -1,2 +1,2 @@
-UPD 2022-12-21_12:16:27 82641 www/pgm2/HMinfoTools.js
+UPD 2022-12-23_13:15:10 83124 www/pgm2/HMinfoTools.js
 UPD 2022-10-31_13:56:47 85409 www/pgm2/HMdeviceTools.js
