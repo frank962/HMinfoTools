@@ -1,4 +1,4 @@
-FW_version["HMinfoTools.js"] = "$Id: HMinfoTools.js 2010 2022-12-21 11:16:27Z frank $";
+FW_version["HMinfoTools.js"] = "$Id: HMinfoTools.js 2011 2022-12-23 12:15:10Z frank $";
 
 var HMinfoTools_debug = true;
 var HMinfoTools_csrf;
@@ -6,6 +6,7 @@ var HMinfoTools_devMap = new Map();
 function HMinfoTools_initMapDevice(device) {
 	var devObj = {name: device, 
 								parentDev: '', 
+								alias: '', 
 								errors: [], 
 								model: '',
 								commState: '',
@@ -367,6 +368,8 @@ function HMinfoTools_parseDevFromJson(device,data) {
 	var devObj = HMinfoTools_devMap.get(device);
 	//parentDev
 	devObj.parentDev = (data.Internals.DEF.length == 6)? data.Internals.NAME: data.Internals.device;
+	//alias
+	if(data.Attributes.alias != null) {devObj.alias = data.Attributes.alias};
 	//model
 	devObj.model = (data.Attributes.model != null && data.Attributes.model != '')? data.Attributes.model: 'missing_model';
 	//commState
@@ -548,7 +551,7 @@ function HMinfoTools_parseErrorDevices(hminfo,weblinkdiv) {
 				var cat2Arr = ["_","__","___"]; //reverse to hminfo internals order
 				var nameArr = ["actDead","protocol","rssiCrit","unreachNames","protoNames"];
 				var sumErrArr = ((object.Attributes.sumERROR != null)? object.Attributes.sumERROR.match(/(?:^|,)[^:]+/g): []); 
-				sumErrArr.forEach((reading, idx, arr) => {arr[idx] = reading.replace(/,/g,'');});
+				sumErrArr.forEach((reading, idx, arr) => {arr[idx] = reading.replace(/[\,\n]/g,'');});
 				var mErrorInternalSorted = mErrorInternal.map((err) => {
 					var test = err.match(/^i([^_]+)([_]+)(.+)$/);
 					var cat3Val = 99;
@@ -757,7 +760,7 @@ function HMinfoTools_createHMinfoTools(hminfo,weblinkdiv,lastChange) {
 					else {
 						if(HMinfoTools_debug) {log('HMinfoTools: ' + 'all data ready, no table creation!');}
 						if(weblinkdiv != null && ioInfo == 'IO_Devices: Info_Unknown'){
-							setTimeout(HMinfoTools_changeInformChannel(''),1000);
+							//setTimeout(HMinfoTools_changeInformChannel(''),1000);
 						}
 					}
 				}
@@ -957,6 +960,7 @@ function HMinfoTools_getInfoFromErrorDevices(idStr) {
 	var iolist = document.getElementById(idStr).getAttribute('iolist');
 	var ios = iolist.split(',');
 	var cmd = 'list ' +deviceList+ ' i:DEF i:device ';
+	cmd += 'a:alias ';
 	cmd += 'a:model ';
 	cmd += 'r:commState ';
 	cmd += 'r:sabotageAttack_ErrIoAttack_cnt ';
@@ -982,6 +986,7 @@ function HMinfoTools_getInfoFromErrorDevices(idStr) {
 													 2021-03-17 18:10:43   commState       Info_Cleared
 													 2021-02-21 19:54:41   sabotageError   on
 																								 IODev           cul868
+				  								 2021-01-06 14:42:48   motorErr        adjusting range too small //value with whitespaces!
 													 2021-02-21 19:54:41   battery         ok
 													 2021-03-18 20:14:41   cfgState        PeerIncom,RegMiss
 																								 NAME            HM_196BD8
@@ -999,6 +1004,7 @@ function HMinfoTools_getInfoFromErrorDevices(idStr) {
 					if(line.match(/[^\s]+$/)[0].length == 6) {devObj.parentDev = devObj.name;}
 				}
 				else if(line.match(/\sdevice\s/)) {devObj.parentDev = line.match(/[^\s]*$/)[0];}
+				else if(line.match(/\salias\s/)) {devObj.alias = line.replace(/^\s+alias\s+/,'');}//value with whitespaces
 				else if(line.match(/\smodel\s/)) {devObj.model = line.match(/[^\s]*$/)[0];}
 				else if(line.match(/\scommState\s/)) {devObj.commState = line.match(/[^\s]*$/)[0];}
 				else if(line.match(/\ssabotageAttack_ErrIoAttack_cnt\s/)) {devObj.sabotageAttack = line.match(/[^\s]*$/)[0];}
@@ -1013,8 +1019,7 @@ function HMinfoTools_getInfoFromErrorDevices(idStr) {
 				else if(line.match('\\srssi_at_' +devObj.IODev+ '\\s')) {devObj.rssi = line.match(/cnt:.+$/)[0];}
 				else if(line.match(/\sbattery\s/)) {devObj.battery = line.match(/[^\s]*$/)[0];}
 				else if(line.match(/\sbatNotOkCtr\s/)) {devObj.batNotOkCtr = line.match(/[^\s]*$/)[0];}
-				//								 2021-01-06 14:42:48   motorErr        adjusting range too small  //err: parse only "small"
-				else if(line.match(/\smotorErr\s/)) {devObj.motorErr = line.match(/[^\s]*$/)[0];}
+				else if(line.match(/\smotorErr\s/)) {devObj.motorErr = line.replace(/^.+\s+motorErr\s+/,'');}//value with whitespaces
 				else if(line.match(/\ssmoke_detect\s/)) {devObj.smokeDetect = line.match(/[^\s]*$/)[0];}
 				else if(line.match(/\scfgState\s/)) {devObj.cfgState = line.match(/[^\s]*$/)[0];}
 				else if(line.match(/\sNAME\s/)) {deviceEnd = true;}
@@ -1224,8 +1229,11 @@ function HMinfoTools_createErrorDevicesTable(errorDevices) {
 		HMinfoTools_createIconCells(td,device); //###############################################
 		var td = document.createElement('td');
 		tr.appendChild(td);
-		var color = '#CCCCCC';
-		td.innerHTML = '<a href="/fhem?detail=' +device+ '"><span style="color: '+color+';">' +device+ '</span></a>';
+		var colorN = 'lightblue';
+		var colorA = '#CCCCCC';
+		var alias = (HMinfoTools_devMap.get(device).alias != '')? ' ('+HMinfoTools_devMap.get(device).alias+')': '';
+		td.innerHTML = '<a href="/fhem?detail=' +device+ '"><span style="color: '+colorN+';">' +device+ '</span>'
+									+ '<span style="color: '+colorA+';">' +alias+ '</span></a>';
 		var td = document.createElement('td');
 		tr.appendChild(td);
 		var errors = HMinfoTools_devMap.get(device).errors;
