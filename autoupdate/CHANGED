@@ -1,4 +1,6 @@
 HMtools repository last changes:
+  HMdeviceTools 1005 2023-08-14 
+  - fix: template problems with set cmd
   HMinfoTools 2011 2022-12-23
   - some improvements
   HMinfoTools 2010 2022-12-09
@@ -36,6 +38,8 @@ HMtools repository last changes:
                     new: mit einem hminfo userattr "HMinfoTools_deviceMode=all" können jetzt alle devices angezeigt werden
 
   History HMdeviceTools.js:
+  1005 2023-08-14 - fix: template problems with set cmd
+  1004 2022-10-31 - ?
   1003 2022-01-04 - ?
   1002 2021-12-02 - fix: verbesserungen zur vermeidung von fhem-style-problemen
   1001 2021-11-22 - fix: fix für templatecheck
