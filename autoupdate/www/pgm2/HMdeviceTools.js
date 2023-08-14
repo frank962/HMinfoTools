@@ -1,4 +1,4 @@
-FW_version["HMdeviceTools.js"] = "$Id: HMdeviceTools.js 1004 2022-10-31 12:56:46Z frank $";
+FW_version["HMdeviceTools.js"] = "$Id: HMdeviceTools.js 1005 2023-08-14 07:43:42Z frank $";
 
 var HMdeviceTools_debug = true;
 var csrf;
@@ -580,7 +580,8 @@ function HMdeviceTools_initTemplateTable(device,peer) {
 		*/
 		lines = data.split('\n');
 		for(var l = 0; l < lines.length; ++l) { //init table for possible device:peer combinations
-			var mLine = lines[l].match(/^([^\s]+)(?:\s+(.*),)?$/);
+//			var mLine = lines[l].match(/^([^\s]+)(?:\s+(.*),)?$/);
+			var mLine = lines[l].match(/^([^\s]+)(?:\s+(.*))?$/);
 			if(mLine != null) {
 				var devName = (mLine[1] == 'Internals:')? device: mLine[1];
 				var peers = [peer];
