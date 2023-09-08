@@ -1,4 +1,9 @@
 HMtools repository last changes:
+  HMdeviceTools 1006 2023-09-07 
+  - add: edit-funktion for templates and minor improvements
+  - fix: some template problems
+  HMinfoTools 2012 2023-09-05
+  - some improvements
   HMdeviceTools 1005 2023-08-14 
   - fix: template problems with set cmd
   HMinfoTools 2011 2022-12-23
@@ -18,6 +23,7 @@ HMtools repository last changes:
   - some improvements for rssi-table
 
   History HMinfoTools.js:
+  2012 2023-09-05 - some improvements
   2011 2022-12-23 - some improvements
   2010 2022-12-09 - sort error messages
                   - improved battery icon for reading batNotOkCtr
@@ -38,6 +44,8 @@ HMtools repository last changes:
                     new: mit einem hminfo userattr "HMinfoTools_deviceMode=all" können jetzt alle devices angezeigt werden
 
   History HMdeviceTools.js:
+  1006 2023-09-07 - add: edit-funktion for templates and minor improvements
+                  - fix: some template problems
   1005 2023-08-14 - fix: template problems with set cmd
   1004 2022-10-31 - ?
   1003 2022-01-04 - ?
