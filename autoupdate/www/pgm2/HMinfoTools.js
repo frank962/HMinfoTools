@@ -1,4 +1,4 @@
-FW_version["HMinfoTools.js"] = "$Id: HMinfoTools.js 2011 2022-12-23 12:15:10Z frank $";
+FW_version["HMinfoTools.js"] = "$Id: HMinfoTools.js 2012 2023-09-05 08:30:46Z frank $";
 
 var HMinfoTools_debug = true;
 var HMinfoTools_csrf;
@@ -109,9 +109,13 @@ function HMinfoTools_getAllRssiData() {
 			table.style.margin = '10px 0px 0px 0px';
 			var thead = document.createElement('thead');
 			table.appendChild(thead);
+            thead.position = 'sticky';
+            thead.top = '10px';
 			var row = document.createElement('tr');
 			thead.appendChild(row);
 			row.id = 'HMinfoTools_rssiTable_header';
+			row.position = 'sticky';
+			row.top = '10px';
 			var headerList = ['device','receive','from','last','min','avg','max','count',
 												'delta<br>minMax','delta<br>avgMax','delta<br>avgAvg','IODev<br>ranking','IOgrp<br>setting'];
 			for(var h = 0; h < headerList.length; ++h) {
@@ -120,6 +124,8 @@ function HMinfoTools_getAllRssiData() {
 				//thCol.setAttribute('scope','col');
 				if(h > 2) {thCol.align = 'center';}
 				thCol.innerHTML = headerList[h];
+				thCol.position = 'sticky';
+				thCol.top = '10px';
 			}
 			var tbody = document.createElement('tbody');
 			table.appendChild(tbody);
@@ -339,13 +345,19 @@ function HMinfoTools_getAllRssiData() {
 				$(div).dialog('close'); 
 				$(div).remove();
 			}
-			$(div).dialog({ dialogClass:'no-close', modal:true, width:$('#HMinfoTools_rssiTable').width()*1.1, closeOnEscape:true, 
-											maxWidth:$(window).width()*0.9, maxHeight:$(window).height()*0.9,
-											//maxWidth:$(window).width()*0.9, height: 'auto+20', 
-											buttons: [{text:'All Changed On', click:function(){doAllOnOff(true);}},
-																{text:'All Off', click:function(){doAllOnOff(false);}},
-																{text:'Set IOgrp', click:function(){doSetIOgrp();}},
-																{text:'Cancel', click:function(){doClose();}}]
+			//$(div).dialog({ dialogClass:'no-close', 
+			$(div).dialog({
+                            modal: true, 
+                            closeOnEscape: true, 
+                            title: "rssi_table", 
+                            width: $('#HMinfoTools_rssiTable').width()*1.1, 
+                            maxWidth: $(window).width()*0.9, 
+                            maxHeight: $(window).height()*0.9,
+                            //maxWidth: $(window).width()*0.9, height: 'auto+20', 
+                            buttons: [{text:'All Changed On', click:function(){doAllOnOff(true);}},
+                                      {text:'All Off', click:function(){doAllOnOff(false);}},
+                                      {text:'Set IOgrp', click:function(){doSetIOgrp();}},
+                                      {text:'Cancel', click:function(){doClose();}}]
 			});
 		}
 	});
@@ -760,7 +772,7 @@ function HMinfoTools_createHMinfoTools(hminfo,weblinkdiv,lastChange) {
 					else {
 						if(HMinfoTools_debug) {log('HMinfoTools: ' + 'all data ready, no table creation!');}
 						if(weblinkdiv != null && ioInfo == 'IO_Devices: Info_Unknown'){
-							//setTimeout(HMinfoTools_changeInformChannel(''),1000);
+							//setTimeout(HMinfoTools_changeInformChannel(''),1000);//not needed???
 						}
 					}
 				}
@@ -1411,8 +1423,9 @@ function HMinfoTools_setIconFromCommState(device,commState) {
 	}
 	else {
 		blinkLed.pause();
-		led.setAttribute('fill','black');
-		setTimeout(led.setAttribute('fill',color),300);
+        led.setAttribute('fill',color);
+//		led.setAttribute('fill','black');
+//		setTimeout(led.setAttribute('fill',color),300);
 	}
 }
 function HMinfoTools_setClearMsgEvents(device) { //click commstate
@@ -1647,7 +1660,7 @@ function HMinfoTools_setIconFromCfgState(device,cfgState) {
 		iconCfgState.setAttribute('onclick',"HMinfoTools_setGetConfig('"+device+"')");
 	}
 
-	if(color == 'red') {
+	if(color == 'red') { // get devInfo only if red; orange generates too much requests
 	/*
 	 Device name:SwitchPBU06
 		 mId      	:0069  Model=HM-LC-SW1PBU-FM
@@ -1659,6 +1672,7 @@ function HMinfoTools_setIconFromCfgState(device,cfgState) {
 				=>RegL_00.,RegL_01.,RegL_03.Tuer.SZ_chn-01,RegL_03.self01,RegL_03.self02
 		 TmplChk: template mismatch
 				=>self01:short->autoOff - OnTime :set_20 should 20 
+                =>Tuer.SZ_chn-01:short->toggleOn-for-timerOff_switch - CtOn :set_geLo should ltLo
 	*/
 		var cmd = 'get ' +device+ ' deviceInfo short';
 		if(HMinfoTools_debug) {log('HMinfoTools: ' + cmd);}
@@ -1674,6 +1688,7 @@ function HMinfoTools_setIconFromCfgState(device,cfgState) {
 							//=>self01:short->autoOff - OnTime :set_20 should 20 
 							var mIdx = line.trim().match(/=>([^:]+)/);
 							var peer = (mIdx[1] == 0)? 'dev': mIdx[1];
+                            peer = peer.replace(/_chn-01/,'');
 							var link = document.getElementById('HMdeviceTools_reg_link_' + peer);
 							if(link.style.color != 'red') {link.style.color = 'red';};
 						}
@@ -1694,7 +1709,7 @@ function HMinfoTools_setIconFromCfgState(device,cfgState) {
 			if(cfgState == 'Info_Unknown' || cfgState == 'updating') {
 				if(this.style.color.match(/^(lime|red)$/)) {this.style.color = 'yellow';}
 			}
-			else {
+			else { //cfgState == 'ok'
 				if(this.style.color.match(/^(yellow|red)$/)) {this.style.color = 'lime';}
 			}
 		});
