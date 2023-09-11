@@ -1,4 +1,4 @@
-FW_version["HMdeviceTools.js"] = "$Id: HMdeviceTools.js 1006 2023-09-07 20:19:39Z frank $";
+FW_version["HMdeviceTools.js"] = "$Id: HMdeviceTools.js 1007 2023-09-10 23:57:28Z frank $";
 
 var HMdeviceTools_debug = true;
 var csrf;
@@ -338,7 +338,7 @@ function HMdeviceTools_changeRegister (device,peer) {
             if(regCtr == 0 || missedVal != 'Some register values are not verified!') {
                 missedVal += "<br><br>Please read the values first with 'set " +device+ " getConfig'";
                 FW_okDialog(missedVal);
-                HMdeviceTools_cancelPopup();
+                HMdeviceTools_cancelPopup(true);
             }
             else {
                 var hminfo = document.getElementById('HMdeviceTools_toolsTable').getAttribute('hminfo');
@@ -369,8 +369,10 @@ function HMdeviceTools_initTemplateTable(device,peer) {
 	table.appendChild(row1);
 	row1.style.fontSize = '16px';
 	row1.style.fontWeight = 'bold';
-	var left = document.createElement('td');
-	row1.appendChild(left);
+	var tdLeft = document.createElement('td');
+	row1.appendChild(tdLeft);
+	var left = document.createElement('div');
+	tdLeft.appendChild(left);
 	var left1 = document.createElement("span");
 	left.appendChild(left1);
 	left1.innerHTML = "register configuration";
@@ -859,7 +861,7 @@ function HMdeviceTools_initRegisterTable() { //1x
 	$("[id^='hm_reg_name_']").each(function() {this.classList.remove('changed');});
 }
 
-// update popup from mode-select
+// update popup from template-dropdown
 function HMdeviceTools_updatePopupMode(device,peer) {
 	tplt.name = '';
 	tplt.type = '';
@@ -900,7 +902,7 @@ function HMdeviceTools_updatePopupMode(device,peer) {
 		$('#hm_popup_btn_define').hide();
 		HMdeviceTools_showApplyBtn();
 	} 
-    else if (value == 'new') { //##################################################################
+    else if (value == 'new') { //####################################################################
 		$('#hm_tplt_name').val(tplt.name);
 		$('#hm_tplt_name').show();
 		$('#hm_tplt_generic').val('');
@@ -932,7 +934,7 @@ function HMdeviceTools_updatePopupMode(device,peer) {
 		$('#hm_popup_btn_define').show();
 		$('#hm_popup_btn_apply').hide();
 	} 
-    else { //template name ########################################################################
+    else { //template name ##########################################################################
 		$('#hm_par_table').hide();
 		$('#hm_dev_table').hide();
 		$('#hm_reg_table').hide();
@@ -1633,7 +1635,10 @@ function HMdeviceTools_updateTemplateList(device,peer,selOption) { //8x => 7x bt
                             tplt.dev.delete(item);
                         }
                     });
-//					var devices = $('#hm_dev_table td:nth-child(2)').find('div'); //wofür ????
+
+                    //show tplt-details="global usage" if we have at start more than 1 link
+                    if(selOption == 'init' && tplt.dev.size > 1) {$('#hm_tplt_details').val('usg');}
+
 					var observer = new MutationObserver(function callback(mutationList,observer) {
 						mutationList.forEach((mutation) => {
 							switch(mutation.type){
@@ -1930,7 +1935,7 @@ function HMdeviceTools_openPopup(device,peer) {
   right.appendChild(cancel);
   cancel.id = "hm_popup_btn_cancel";
   cancel.innerHTML = "<span class=\"ui-button-text\">Cancel</span>";
-  cancel.setAttribute("onclick", "HMdeviceTools_cancelPopup()");
+  cancel.setAttribute("onclick", "HMdeviceTools_cancelPopup(true)");
   cancel.setAttribute("class", "ui-button ui-widget ui-state-default ui-corner-all ui-button-text-only");
   return content;
 }
@@ -2043,7 +2048,7 @@ function HMdeviceTools_btnAction(device,peer,btn) {
 				break;
 			}
 		}
-		if(closePopup) {HMdeviceTools_cancelPopup();}
+		if(closePopup) {HMdeviceTools_cancelPopup(false);}
 		else {HMdeviceTools_updateTemplateList(device,peer,(tplt.type == '')? tplt.name: tplt.name +'_'+ tplt.type);}
 	}
 	else if(btn == 'unassign') {                   // unassign template #####################################################
@@ -2114,10 +2119,7 @@ function HMdeviceTools_btnAction(device,peer,btn) {
 				var url = HMdeviceTools_makeCommand(cmd);
 				$.get(url,function(data){
 					if(data) {FW_okDialog(data);}
-					else {
-                        FW_okDialog('saved changes!');
-                        HMdeviceTools_cancelPopup();
-                    }
+					else {FW_okDialog('saved changes!');HMdeviceTools_cancelPopup(true);}
 				});
 			}
             else {FW_okDialog('nothing to do!');}
@@ -2303,15 +2305,17 @@ function HMdeviceTools_applyPopup(device,peer) {
 		if(HMdeviceTools_debug) {log('HMdeviceTools: ' + command);}
     $.get(url, function(data){
 			if(data) {FW_okDialog(data);}
-			else {HMdeviceTools_cancelPopup();}
+			else {HMdeviceTools_cancelPopup(true);}
     });
   }
-	else {FW_okDialog('No register changes, nothing to do');}
+  else {FW_okDialog('No register changes, nothing to do');}
 }
 // close popup
-function HMdeviceTools_cancelPopup() {
-    location.reload();
-//    $('#hm_reg_popup').remove();
-//    $('#hm_reg_overlay').remove();
+function HMdeviceTools_cancelPopup(reload) {
+    if(reload) {location.reload();}
+    else {
+        $('#hm_reg_popup').remove();
+        $('#hm_reg_overlay').remove();
+    }
 }
 
