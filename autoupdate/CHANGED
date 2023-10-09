@@ -1,6 +1,10 @@
 HMtools repository last changes:
+  HMinfoTools 2013 2023-10-09
+  - fix: problem "no vccu but attr IOgrp"
+  HMdeviceTools 1007 2023-09-10
+  - fix: problem with new cancel-function
   HMdeviceTools 1006 2023-09-07 
-  - add: edit-funktion for templates and minor improvements
+  - add: edit-function for templates and minor improvements
   - fix: some template problems
   HMinfoTools 2012 2023-09-05
   - some improvements
@@ -16,13 +20,9 @@ HMtools repository last changes:
   - fix typeError after fhem restart until first hminfo update
   HMinfoTools 2008 2022-01-09
   - add update info for outdated hminfo modul
-  HMinfoTools 2007 2022-01-07
-  - fix problems for devices with attr IODev #112825.msg1198733.html#msg1198733
-  HMinfoTools 2006 2022-01-04
-  - fix color problems with desired-io-icon for devices using no prefered io
-  - some improvements for rssi-table
 
   History HMinfoTools.js:
+  2013 2023-10-09 - fix problem "no vccu but attr IOgrp"
   2012 2023-09-05 - some improvements
   2011 2022-12-23 - some improvements
   2010 2022-12-09 - sort error messages
@@ -44,7 +44,8 @@ HMtools repository last changes:
                     new: mit einem hminfo userattr "HMinfoTools_deviceMode=all" können jetzt alle devices angezeigt werden
 
   History HMdeviceTools.js:
-  1006 2023-09-07 - add: edit-funktion for templates and minor improvements
+  1007 2023-09-10 - fix: problem with new cancel-function
+  1006 2023-09-07 - add: edit-function for templates and minor improvements
                   - fix: some template problems
   1005 2023-08-14 - fix: template problems with set cmd
   1004 2022-10-31 - ?
