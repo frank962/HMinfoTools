@@ -1,4 +1,4 @@
-FW_version["HMinfoTools.js"] = "$Id: HMinfoTools.js 2012 2023-09-05 08:30:46Z frank $";
+FW_version["HMinfoTools.js"] = "$Id: HMinfoTools.js 2013 2023-10-09 10:35:33Z frank $";
 
 var HMinfoTools_debug = true;
 var HMinfoTools_csrf;
@@ -917,11 +917,13 @@ function HMinfoTools_parseIOsFromHMinfo(ioInfoRaw) {
 	}
 	else if(ioInfoRaw != null && ioInfoRaw.match(/>/)) { //new hminfo version
 		//iI_HM_IOdevices     ccu>Initialized:cul868;ok:hmlan1,hmuart1; noVccu>dummy:hmusb2; vccu2>dummy:hmusb1;
+		//iI_HM_IOdevices     noVccu>ok:myHmUART;
 		var vccuStrArr = ioInfoRaw.split(' ');
 		vccuStrArr.forEach(function(vccuStr) {
 			var vccu = vccuStr.replace(/>.*$/,'');
 			if(vccu != 'noVccu') {
 				var vccuIOs = vccuStr.match(/(?<=:|,)[^,;]+/g);
+                //vcculist="ccu:cul868,hmlan1,hmuart1 vccu2:hmusb1"
 				vcculist += (vcculist == '')? vccu+':'+vccuIOs.join(','): ' '+vccu+':'+vccuIOs.join(',');
 			}
 		});
@@ -1562,9 +1564,11 @@ function HMinfoTools_setIconFromIODev(device,iodev) {
 	var curVccu = IOgrp.replace(/:.+$/,'');
 	var curVccuIoArr = []; 
 
-	//HMinfoTools.js line 1456:
-	//TypeError: $(...).attr(...).match(...) is null
 	if(document.getElementById('hminfotools') != null) { //only with hminfo
+        //HMinfoTools.js line 1568:
+        //Uncaught TypeError: Cannot read properties of null (reading '0')
+        //=> no vccu defined but attr IOgrp exist!!! => vcculist=''
+        if($('#hminfotools').attr('vcculist') == '') {curVccu = '';}
 		curVccuIoArr = (curVccu != '')? $('#hminfotools').attr('vcculist').match('(?<=^'+curVccu+':|\\s'+curVccu+':)[^\\s]+')[0].split(','): [];
 	}
 	else {
@@ -1579,24 +1583,28 @@ function HMinfoTools_setIconFromIODev(device,iodev) {
 		color = 'red';
 		text = '';
 	}                    // no io in use
-	else if(IOgrp && IOgrp != 'missing_IOgrp') {                     // we use vccu
+	else if(IOgrp && IOgrp != 'missing_IOgrp' && curVccu != '') {    // we use vccu
 		text = ' (desired => ' +IOgrp+ ')';
-		if(IOgrp.match(/:.+$/)) {                                      // we use prefered 
+		if(IOgrp.match(/:.+$/)) {                                        // we use prefered 
 			if(IOgrp.match(':'+iodev+'(?:,|$)')) {color = 'lime';}
 			else if(IOgrp.match(','+iodev+'(?:,|$)')) {color = 'yellow';}
 			else if(curVccuIoArr.includes(iodev)) {color = 'orange';}
 			else {color = 'red';}
 		}
-		else {                                                         // we use no prefered
+		else {                                                           // we use no prefered
 			if(curVccuIoArr.includes(iodev)) {color = 'white';}
 			else {color = 'red';}
 		}
 	}
-	else if(IOgrp == 'missing_IOgrp' && aIODev == 'missing_aIODev') { // no attributes
+	else if(IOgrp && IOgrp != 'missing_IOgrp' && curVccu == '') {    // no vccu but attr IOgrp
+		color = 'red';
+		text = ' (error => vccu is missing!!!)';
+	}
+	else if(IOgrp == 'missing_IOgrp' && aIODev == 'missing_aIODev') {// no attributes
 		color = 'red';
 		text = ' (nothing is desired!!!)';
 	}
-	else {                                                            // only attr IODev
+	else {                                                           // only attr IODev
 		text = ' (desired => ' +aIODev+ ')';
 		if(iodev == aIODev) {color = 'lime';}
 		else {color = 'red';}
