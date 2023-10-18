@@ -1,4 +1,7 @@
 HMtools repository last changes:
+  HMdeviceTools 1008 2023-10-18
+  - new: find all possible entities with register-sets to assign a given template
+  - new: improvements for edit-function
   HMinfoTools 2013 2023-10-09
   - fix: problem "no vccu but attr IOgrp"
   HMdeviceTools 1007 2023-09-10
@@ -18,8 +21,7 @@ HMtools repository last changes:
   - better longpoll setting
   HMinfoTools 2009 2022-03-21
   - fix typeError after fhem restart until first hminfo update
-  HMinfoTools 2008 2022-01-09
-  - add update info for outdated hminfo modul
+
 
   History HMinfoTools.js:
   2013 2023-10-09 - fix problem "no vccu but attr IOgrp"
@@ -44,8 +46,10 @@ HMtools repository last changes:
                     new: mit einem hminfo userattr "HMinfoTools_deviceMode=all" können jetzt alle devices angezeigt werden
 
   History HMdeviceTools.js:
+  1008 2023-10-18 - new: find all possible entities with register-sets to assign a given template
+                  - new: improvements for edit-function
   1007 2023-09-10 - fix: problem with new cancel-function
-  1006 2023-09-07 - add: edit-function for templates and minor improvements
+  1006 2023-09-07 - new: edit-function for templates and minor improvements
                   - fix: some template problems
   1005 2023-08-14 - fix: template problems with set cmd
   1004 2022-10-31 - ?
