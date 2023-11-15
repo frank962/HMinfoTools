@@ -1,4 +1,6 @@
 HMtools repository last changes:
+  HMdeviceTools 1009 2023-11-15
+  - new: exec-funktion for templates and minor improvements
   HMdeviceTools 1008 2023-10-18
   - new: find all possible entities with register-sets to assign a given template
   - new: improvements for edit-function
@@ -46,6 +48,7 @@ HMtools repository last changes:
                     new: mit einem hminfo userattr "HMinfoTools_deviceMode=all" können jetzt alle devices angezeigt werden
 
   History HMdeviceTools.js:
+  1009 2023-11-15 - new: exec-funktion for templates and minor improvements
   1008 2023-10-18 - new: find all possible entities with register-sets to assign a given template
                   - new: improvements for edit-function
   1007 2023-09-10 - fix: problem with new cancel-function
