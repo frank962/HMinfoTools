@@ -1,4 +1,4 @@
-FW_version["HMdeviceTools.js"] = "$Id: HMdeviceTools.js 1008 2023-10-18 23:20:34Z frank $";
+FW_version["HMdeviceTools.js"] = "$Id: HMdeviceTools.js 1009 2023-11-15 10:18:33Z frank $";
 
 var HMdeviceTools_debug = true;
 var csrf;
@@ -37,7 +37,7 @@ $(document).ready(function() {
 });
 
 
-// create an extra table with buttons for device and peer register sets
+// create an extra table with buttons for device and peer registersets
 function HMdeviceTools_createRegisterTable(object,isParentDev) {
   // we will insert the table before the internals
   var intdiv = document.querySelector('div.makeTable.wide.internals');
@@ -53,7 +53,6 @@ function HMdeviceTools_createRegisterTable(object,isParentDev) {
 	div.setAttribute('model',object.Attributes.model);
   div.setAttribute('class','makeTable wide internals');
 	HMdeviceTools_checkHMinfo(); //check if hminfo is running and set attribute "hminfo"
-	//HMdeviceTools_checkHMtemplate(); //check if HMtemplate is running and set attribute "hmtemplate"
 
   //title
 	var header = intdiv.firstElementChild.cloneNode(false);
@@ -85,12 +84,13 @@ function HMdeviceTools_createRegisterTable(object,isParentDev) {
 	td.style.whiteSpace = 'nowrap';
 	td.style.width = '210px'; //
 	
-    //link device registerset
+    //link to device registerset
     var td = document.createElement('td');
     tr.appendChild(td);
     var list = document.createElement('span');
     td.appendChild(list);
     list.id = 'HMdeviceTools_reg_link_dev';
+    list.hidden = (object.Attributes.model == 'VIRTUAL' || object.Attributes.model == 'CCU-FHEM')? true: false;
     list.innerHTML = 'Device';
     list.setAttribute('def',object.Internals.DEF);
     list.setAttribute('device',object.Internals.NAME);
@@ -111,7 +111,7 @@ function HMdeviceTools_createRegisterTable(object,isParentDev) {
     list.title = (genTplts.length > 0)? 'assigned templates:\n => ' + genTplts.sort().join("\n => "): '';
 
     //if device has peers - create a button for every peer
-    if(object.Internals.peerList != null) {
+    if(object.Internals.peerList != null && !(object.Attributes.model == 'VIRTUAL' || object.Attributes.model == 'CCU-FHEM')) {
         var peers = object.Internals.peerList.split(',');
         var readings = JSON.stringify(object);
         for(var i = 0; i < peers.length; ++i) {
@@ -128,9 +128,6 @@ function HMdeviceTools_createRegisterTable(object,isParentDev) {
                 list.setAttribute('onclick',"HMdeviceTools_changeRegister('" + object.Internals.NAME + "','" +p+ "')");
                 list.style.margin = '0px 10px 0px 0px';
                 list.style.cursor = 'pointer';
-                //var mReadings = readings.match('tmpl_' +p+suffix+ ':'); //suffix changes sometimes??? last 2023-08-24
-                //var mReadings = readings.match('tmpl_' +p+ ':');
-                //var peerTplts = assTplts.find((item) => item.match('^' +p+ '(?::(?:both|long|short))?>'));
                 var peerTplts = [];
                 assTplts.forEach((item) => {
                     var s1 = item.split('>');
@@ -138,7 +135,6 @@ function HMdeviceTools_createRegisterTable(object,isParentDev) {
                     if(s2[0].match('^' +p+ '$')) {
                         peerTplts.push(s1[1] + ((s2[1] != null && s2[1] != 'both')? '_'+s2[1]: ''));
                     }
-//                    if(item.match('^' +p+ '(?::both|:long|:short)?>')) {peerTplts.push(item.replace(/^[^>]+>/,''));}
                 });
                 list.style.color = (peerTplts.length > 0)? 'yellow': '#CCCCCC';
                 list.title = (peerTplts.length > 0)? 'assigned templates:\n => ' + peerTplts.sort().join("\n => "): '';
@@ -148,6 +144,31 @@ function HMdeviceTools_createRegisterTable(object,isParentDev) {
     div.setAttribute('installation','ready');
 }
 
+
+// parse the register list - store info into a map
+function HMdeviceTools_parseRegisterList(data) {
+  var regmap = new Map();
+  var lines = data.split('\n');
+  for(var i = 1; i < lines.length; ++i) {
+    var line = lines[i];
+    var match = line.match(/\s*\d:\s+([\w-]+)\s+\|([^|]+)\|([^|]+)\|(.*)/);
+    if(match != null) {
+      var regobj = {};
+      regobj.name = match[1];
+      regobj.range = match[2].trim();
+      regobj.desc = match[4].trim();
+      if(regobj.range == 'literal') {
+        match = regobj.desc.match(/(.*)options:(.*)/);
+        if(match != null) {
+          if(match[1] != '') {regobj.desc = match[1];}
+          regobj.literals = match[2].split(',').sort();
+        }
+      }
+      regmap.set(regobj.name,regobj);
+    }
+  }
+  return regmap;  
+}
 
 //open a popup window to change the register values
 function HMdeviceTools_changeRegister (device,peer) {
@@ -190,10 +211,11 @@ function HMdeviceTools_changeRegister (device,peer) {
             table.appendChild(thead);
             var row = document.createElement('tr');
             thead.appendChild(row);
-            var headerList = ['use','register','value','description'];
+            var headerList = ['use','register','value (device)','description'];
             for(var h = 0; h < 4; ++h) { 
                 var th = document.createElement('th');
                 row.appendChild(th);
+                if(h == 2) {th.id = 'hm_reg_headerVal';}
                 th.setAttribute('scope','col');
                 th.hidden = (h == 0);
                 th.innerHTML = headerList[h];
@@ -265,14 +287,14 @@ function HMdeviceTools_changeRegister (device,peer) {
                                 c3.appendChild(input);
                                 input.id = 'hm_reg_val_' + regname;
                                 input.name = regname;
-                                input.title = 'range:' +regdesc.range+ ' => current:' + regvalue;
-                                input.placeholder = '(' +regvalue+ ')';
-                                input.value = regvalue;
                                 input.setAttribute('orgvalue',regvalue);
                                 input.setAttribute('tplvalue','');
                                 input.setAttribute('onchange',"HMdeviceTools_updatePopupRegister('hm_reg_val_" +regname+ "')");
                                 input.style.width = '140px';
                                 input.style.margin = '0px 0px 0px 0px';
+                                input.title = 'range:' +regdesc.range+ ' => current:' + regvalue;
+                                input.placeholder = '(' +regvalue+ ')';
+                                input.value = regvalue;
                             }
                             else {
                                 var select = document.createElement('select');
@@ -284,6 +306,7 @@ function HMdeviceTools_changeRegister (device,peer) {
                                 select.setAttribute('onchange',"HMdeviceTools_updatePopupRegister('hm_reg_val_" +regname+ "')");
                                 select.style.width = '150px';
                                 select.style.margin = '0px 0px 0px 0px';
+                                select.title = ' => current:' + regvalue;
                                 for(var l = 0; l < regdesc.literals.length; ++l) {
                                     var lit = regdesc.literals[l];
                                     var opt = document.createElement('option');
@@ -637,7 +660,7 @@ function HMdeviceTools_appendRowForDeviceTable(entity,idx) {
 	return row;
 }
 //onchange use-device-check-elements
-function HMdeviceTools_updateUsedDevicesTable(id) { //2x
+function HMdeviceTools_updateUsedDevicesTable(id) { //1x HMdeviceTools_parseTemplateFromTemplateList, ^1x 
 	var mId = id.match(/^hm_dev_([^_]+)_(.+)$/);
 	if(mId != null) {
 		var link = mId[2];
@@ -753,15 +776,26 @@ function HMdeviceTools_initRegisterTable() { //1x
 	$("[id^='hm_reg_row_']").each(function() {this.classList.remove('template');});
 	$("[id^='hm_tplt_reg_']").each(function() {
 		this.value = 'off';
+		this.setAttribute('orgvalue','off');
 		this.disabled = false;
 		this.style.backgroundColor = 'white';
 	});
+	$("[id^='hm_reg_name_']").each(function() {this.classList.remove('changed');});
 	$("[id^='hm_reg_val_']").each(function() {
 		this.value = this.getAttribute('orgvalue');
 		this.setAttribute('tplvalue','');
 		this.disabled = false;
 	});
+/* edit-mode
+    //reg table
+    $("[id^='hm_tplt_reg_']").prop('disabled',false);
 	$("[id^='hm_reg_name_']").each(function() {this.classList.remove('changed');});
+    $("[id^='hm_reg_val_']").each(function() {
+        if($('#hm_tplt_reg_' + this.name).val() != 'on') {this.disabled = true;} //only used reg enabled
+        else {this.disabled = false;}
+    });
+    $('#hm_reg_table').show();
+*/
 }
 
 
@@ -791,9 +825,11 @@ function HMdeviceTools_updatePopupMode(device,peer) { //1x HMdeviceTools_changeR
 		$('#hm_tplt_info').hide();
 		$('#hm_par_table').hide();
 		$('#hm_dev_table').hide();
-		$('#hm_tplt_define').hide();
+        $('#hm_reg_headerVal').text('value (device)');
 		$('#hm_reg_table th:nth-child(1),#hm_reg_table td:nth-child(1)').hide();
 		$('#hm_reg_table').show();
+		$('#hm_tplt_define').hide();
+        
 		$("[id^='hm_popup_btn_use']").hide();
 		$('#hm_popup_btn_allOn').hide();
 		$('#hm_popup_btn_allOff').hide();
@@ -820,10 +856,12 @@ function HMdeviceTools_updatePopupMode(device,peer) { //1x HMdeviceTools_changeR
 		$("[id^='hm_tplt_parRow_']").hide();
 		$('#hm_par_table').show();
 		$('#hm_dev_table').hide();
+        $('#hm_reg_headerVal').text('value (templ/dev)');
 		$('#hm_reg_table th:nth-child(1),#hm_reg_table td:nth-child(1)').show(); //reg select input
 		$('#hm_reg_table').show();
 		$('#hm_tplt_define').val('');
 		$('#hm_tplt_define').show();
+        
 		$("[id^='hm_popup_btn_use']").hide();
 		$('#hm_popup_btn_allOn').show();
 		$('#hm_popup_btn_allOff').show();
@@ -846,6 +884,7 @@ function HMdeviceTools_updatePopupMode(device,peer) { //1x HMdeviceTools_changeR
 		$('#hm_par_table').hide();
 		$('#hm_dev_table').hide();
 		$('#hm_reg_table').hide();
+        $('#hm_reg_headerVal').text('value (templ/dev)');
 
 		HMdeviceTools_parseTemplateFromTemplateList(device,peer,value);
 		
@@ -854,13 +893,13 @@ function HMdeviceTools_updatePopupMode(device,peer) { //1x HMdeviceTools_changeR
 		$('#hm_popup_btn_save').hide();
         $('#hm_popup_btn_edit').show();
 		$('#hm_popup_btn_check').hide();
-		$('#hm_popup_btn_execute').hide();
 		$('#hm_popup_btn_show').hide();
 		$('#hm_popup_btn_define').hide();
 		$('#hm_popup_btn_apply').hide();
 		var mode = $('#hm_tplt_details').val();
 		var isUseMode = (mode == 'usg' || mode == 'all')? true: false;
 		if(select.style.backgroundColor == 'lightgreen') {
+            $('#hm_popup_btn_execute').show();
 			$('#hm_popup_btn_set').attr('active','off');
 			if(!isUseMode) {$('#hm_popup_btn_set').hide();}
 			$('#hm_popup_btn_unassign').attr('active','on');
@@ -868,6 +907,7 @@ function HMdeviceTools_updatePopupMode(device,peer) { //1x HMdeviceTools_changeR
 			$('#hm_popup_btn_delete').hide();
 		}
 		else if(select.style.backgroundColor == 'yellow') {
+            $('#hm_popup_btn_execute').hide();
 			$('#hm_popup_btn_set').attr('active','on');
 			if(!isUseMode) {$('#hm_popup_btn_set').show();}
 			$('#hm_popup_btn_unassign').attr('active','off');
@@ -875,6 +915,7 @@ function HMdeviceTools_updatePopupMode(device,peer) { //1x HMdeviceTools_changeR
 			$('#hm_popup_btn_delete').hide();
 		}
 		else if(select.style.backgroundColor == 'white') {
+            $('#hm_popup_btn_execute').hide();
 			$('#hm_popup_btn_set').attr('active','on');
 			if(!isUseMode) {$('#hm_popup_btn_set').show();}
 			$('#hm_popup_btn_unassign').attr('active','off');
@@ -941,12 +982,15 @@ function HMdeviceTools_enterEditMode() {
     $('#hm_par_table th:nth-child(3),#hm_par_table td:nth-child(3)').hide(); //par value input
     $('#hm_par_table').show();
     $('#hm_dev_table').hide();
+    //reg table
     $("[id^='hm_tplt_reg_']").prop('disabled',false);
+	$("[id^='hm_reg_name_']").each(function() {this.classList.remove('changed');});
     $("[id^='hm_reg_val_']").each(function() {
-        if($('#hm_tplt_reg_' + this.name).val().match(/^p/)) {this.disabled = true;} //reg used from par
+        if($('#hm_tplt_reg_' + this.name).val() != 'on') {this.disabled = true;} //only used reg enabled
         else {this.disabled = false;}
     });
     $('#hm_reg_table').show();
+    //define
     $('#hm_tplt_define').attr('orgvalue',$('#hm_tplt_define').val());
     $('#hm_tplt_define').show();
     
@@ -956,10 +1000,9 @@ function HMdeviceTools_enterEditMode() {
     $('#hm_popup_btn_allOff').show();
     $('#hm_popup_btn_save').show();
     $('#hm_popup_btn_edit').hide();
-    //$('#hm_popup_btn_check').hide();
-    //$('#hm_popup_btn_execute').hide();
     $('#hm_popup_btn_set').hide();
     $('#hm_popup_btn_unassign').hide();
+    $('#hm_popup_btn_execute').hide();
     $('#hm_popup_btn_delete').hide();
     $('#hm_popup_btn_show').show();
     $('#hm_popup_btn_define').hide();
@@ -978,11 +1021,8 @@ function HMdeviceTools_leaveEditMode() {
     $('#hm_par_table th:nth-child(3),#hm_par_table td:nth-child(3)').hide(); //par value input
     $('#hm_par_table').show();
     $('#hm_dev_table').show();
+    //reg table
     $("[id^='hm_tplt_reg_']").prop('disabled',true);
-    $("[id^='hm_reg_val_']").each(function() {
-        if($('#hm_tplt_reg_' + this.name).val().match(/^p/)) {this.disabled = true;} //reg used from par
-        else {this.disabled = false;}
-    });
     $('#hm_reg_table').show();
 }
 
@@ -1138,10 +1178,53 @@ function HMdeviceTools_parseTemplateFromInputs(device,peer,id) { //6x
 					}
 					else {$('#hm_tplt_parRow_' + p).hide();}
 				}
-                //disable regValue input
+                //handle regValue input
                 var inpReg = document.getElementById('hm_reg_val_' + input.name);
-                if(input.value.match(/^p\d$/)) {inpReg.disabled = true;}
-                else {inpReg.disabled = false;}
+                var orgRegVal = inpReg.getAttribute('orgvalue');
+                var tplRegVal = inpReg.getAttribute('tplvalue');
+                var outName = $('#hm_reg_name_' + input.name);
+                var mode = $('#hm_tplt_select').val();
+                if(mode != 'expert' && mode != 'new') {mode = 'select';}
+                if(mode == 'select' && $('#hm_tplt_name').is(':visible')) {mode = 'edit';}
+
+                var normalCol = document.getElementById('hm_reg_table').style.backgroundColor;
+                var actionCol = '#888888';
+                if(input.value == 'on') {
+                    inpReg.disabled = false;
+                    inpReg.value = (tplRegVal != '')? tplRegVal: orgRegVal;
+                    if(input.value != input.getAttribute('orgvalue') || inpReg.value != tplRegVal) {
+                        document.getElementById('hm_reg_row_' + input.name).style.backgroundColor = actionCol;
+                        //$(outName).addClass('changed');
+                    }
+                    else {
+                        document.getElementById('hm_reg_row_' + input.name).style.backgroundColor = normalCol;
+                        //$(outName).removeClass('changed');
+                    }
+                }
+                else if(input.value.match(/^p\d$/)) {
+                    inpReg.disabled = true;
+                    inpReg.value = (tplRegVal != '')? tplRegVal: orgRegVal;
+                    if(input.value != input.getAttribute('orgvalue') || inpReg.value != tplRegVal) {
+                        document.getElementById('hm_reg_row_' + input.name).style.backgroundColor = actionCol;
+                        //$(outName).addClass('changed');
+                    }
+                    else {
+                        document.getElementById('hm_reg_row_' + input.name).style.backgroundColor = normalCol;
+                        //$(outName).removeClass('changed');
+                    }
+                }
+                else {//off
+                    inpReg.disabled = true;
+                    inpReg.value = orgRegVal;
+                    if(input.value != input.getAttribute('orgvalue') || inpReg.value != orgRegVal) {
+                        document.getElementById('hm_reg_row_' + input.name).style.backgroundColor = actionCol;
+                        //$(outName).addClass('changed');
+                    }
+                    else {
+                        document.getElementById('hm_reg_row_' + input.name).style.backgroundColor = normalCol;
+                        //$(outName).removeClass('changed');
+                    }
+                }
 			}
 			else if(match[1] == 'name') {                              // inputs: template name ##############################
 				var hminfo = document.getElementById('HMdeviceTools_toolsTable').getAttribute('hminfo');
@@ -1233,7 +1316,7 @@ function HMdeviceTools_parseTemplateFromInputs(device,peer,id) { //6x
 function HMdeviceTools_parseTemplateFromTemplateList(entity,peer,template) { //1x HMdeviceTools_updatePopupMode (for every template)
 	var cmd = '{';
     cmd += 'my @arr;;';
-    cmd += 'foreach my $e (devspec2array("TYPE=CUL_HM:FILTER=DEF!=000000:FILTER=model!=VIRTUAL")){';
+    cmd += 'foreach my $e (devspec2array("TYPE=CUL_HM:FILTER=model!=(ACTIONDETECTOR|CCU-FHEM|VIRTUAL)")){';
     cmd +=   'if($defs{$e}{helper}{cmds}{lst}{tplChan} =~ m/(^|,)' +template+ '(,|$)/){';
     cmd +=     'push(@arr,$e.":0");;';
     cmd +=   '} ';
@@ -1366,6 +1449,7 @@ function HMdeviceTools_parseTemplateFromTemplateList(entity,peer,template) { //1
                                             if(inpPar.nodeName == 'SELECT') {
                                                 inpPar.style.width = 'auto';
                                                 if(link != curLink) {
+                                                    inpPar.title = inpPar.title.replace(/current:.*$/,'current:unknown');
                                                     var orgvalue = inpPar.getAttribute('orgvalue');
                                                     inpPar.querySelector("option[value='" +orgvalue+ "']").style.backgroundColor = 'white';
                                                     var opt = document.createElement('option');
@@ -1398,176 +1482,168 @@ function HMdeviceTools_parseTemplateFromTemplateList(entity,peer,template) { //1
                     }
                 }
             }
-            var cmd = HMdeviceTools_makeCmdDefineTemplate();
-            $('#hm_tplt_define').val(cmd);
 
-            HMdeviceTools_getTemplateUsage(entity,peer,tplt.name,tplt.type); // we need parameter values
-            // show parameter table
-            (tplt.par.size == 0)? $('#hm_tplt_parRow_header').hide(): $('#hm_tplt_parRow_header').show();
-            for(var p = 0; p < 9; ++p) {
-                var parId = 'p' + p;
-                if(tplt.par.has(parId)) {
-                    $('#hm_tplt_parRow_' + p).show();				
-                    var newPar = tplt.par.get(parId);
-                    var inpParName = document.getElementById("hm_tplt_" + parId + "_nameIn");	
-                    inpParName.placeholder = 'new_parameter_' + newPar.masterReg;
-                    inpParName.value = newPar.name;
-                    inpParName.hidden = true;
-                    var outParName = document.getElementById("hm_tplt_" + parId + "_nameOut");					
-                    outParName.innerHTML = newPar.name;
-                    outParName.hidden = false;
-                    outParName.removeAttribute('class');
-                    //else {outDev.removeAttribute('class','changed');}
-                    //$('#hm_tplt_p' +p+ '_nameOut').removeAttr('class')
-                    var inpParValue = document.getElementById("hm_tplt_" + parId + "_value");
-                    inpParValue.hidden = false;
-                    var parDesc = document.getElementById("hm_tplt_" + parId + "_desc");					
-                    parDesc.innerHTML = document.getElementById("hm_reg_desc_" + newPar.masterReg).innerHTML;
-                }
-                else {$('#hm_tplt_parRow_' + p).hide();}
-            }
-            // show device table columns
-            for(var p = 0; p < 9; ++p) {
-                $("[id^='hm_dev_h" +(p+2)+ "']").each(function() {this.hidden = (p > tplt.par.size -1)? true: false;});
-                $("[id^='hm_dev_p" +p+ "']").each(function() {this.hidden = (p > tplt.par.size -1)? true: false;});
-            }
-            // show colors in reg table
-            $("[id^='hm_reg_val_']").each(function() {this.disabled = true;});
-            $("[id^='hm_tplt_reg_']").each(function() {
-                this.disabled = true;
-                if(this.value == 'off') {this.style.backgroundColor = 'white';}
-                else if(this.value == 'on') {this.style.backgroundColor = 'lightgreen';}
-                else {
-                    if(tplt.par.size > 0) {
-                        this.style.backgroundColor = (tplt.par.get(this.value).clients.length == 0)? 'yellow': 'orange';
-                    }
-                }
-            });
-            $('#hm_popup_btn_use').attr('active','off');
-            HMdeviceTools_updateTemplateDetails();
-        });
-        
-        
-        
-	});
+            //HMdeviceTools_getTemplateUsage(entity,peer,tplt.name,tplt.type); // we need parameter values
+            
+            //get hminfo templateUsgG [sortPeer|sortTemplate|noTmpl|all]
+            var cmd = 'get ' +hminfo+ ' templateUsgG all';
+            if(HMdeviceTools_debug) {log('HMdeviceTools: ' + cmd);}
+            var url = HMdeviceTools_makeCommand(cmd);
+            $.get(url,function(data) { //get used parameter values
+                tplt.ass = [];
+                var lines = data.split('\n');
+                for(var l = 0; l < lines.length; ++l) {
+                    var line = lines[l];
+                    if(line != '') { // '' => template not in use
+                        //Thermostat.OZ        |0              |tc1    |a:auto b:15 c:off d:off
+                        //Thermostat.SZ_Climate|0              |s1     |
+                        //HM_3913D3            |self02:short   |autoOff|time:unused
+                        //SwitchPBU06          |Tuer.SZ:short  |autoOff|time:15
+                        //SwitchPBU06          |0              |ES_00  |powerUpAction:off
+                        var mLine = line.match(/^([^|]+)\|([^:|]+)(?::(\w+))?\s*\|([^|]+)\|(.*)$/);
+                        var usedDevice = mLine[1].trim();
+                        var usedPeer = mLine[2].trim().replace(/_chn-01/,'');
+                        var usedLink = usedDevice + ':' + usedPeer;
 
-
-
-}
-// looking for parameter values => get hminfo templateUsgG all
-function HMdeviceTools_getTemplateUsage(entity,peer,template,type) { //1x parseTemplateFromTemplateList
-	var idx = (peer == '')? 0: peer;
-	var hminfo = document.getElementById('HMdeviceTools_toolsTable').getAttribute('hminfo');
-	//get hminfo templateUsgG [sortPeer|sortTemplate|noTmpl|all]
-	var cmd = 'get ' +hminfo+ ' templateUsgG all';
-	if(HMdeviceTools_debug) {log('HMdeviceTools: ' + cmd);}
-	var url = HMdeviceTools_makeCommand(cmd);
-	$.get(url,function(data) { //get used parameter values
-        tplt.ass = [];
-		var lines = data.split('\n');
-		for(var l = 0; l < lines.length; ++l) {
-			var line = lines[l];
-			if(line != '') { // '' => template not in use
-				//Thermostat.OZ        |0              |tc1    |a:auto b:15 c:off d:off
-				//Thermostat.SZ_Climate|0              |s1     |
-				//HM_3913D3            |self02:short   |autoOff|time:unused
-				//SwitchPBU06          |Tuer.SZ:short  |autoOff|time:15
-				//SwitchPBU06          |0              |ES_00  |powerUpAction:off
-				var mLine = line.match(/^([^|]+)\|([^:|]+)(?::(\w+))?\s*\|([^|]+)\|(.*)$/);
-                var usedDevice = mLine[1].trim();
-                var usedPeer = mLine[2].trim().replace(/_chn-01/,'');
-                var usedLink = usedDevice + ':' + usedPeer;
-
-                if(tplt.dev.has(usedLink)) { //if row exist in device table
-                    var devObj = tplt.dev.get(usedLink);
-                    var usedPeerType = (mLine[3] == undefined)? '': mLine[3];
-                    var usedType = (usedPeerType == 'both')? '': usedPeerType;
-                    var usedTemplate = mLine[4].trim();
-                    var usedTplt = usedTemplate + ((usedType != '')? '_' + usedType: '');
-                    
-                    if(!devObj.tplts.includes(usedTplt)) {devObj.tplts.push(usedTplt);}
-                    if(devObj.tplts.length > 0) {
-                        var linkName = document.getElementById('hm_dev_name_' + usedLink);
-                        linkName.style.color = devObj.tplts.length > 1? 'orange': 'yellow'; //links with templates becomes color
-                        linkName.title = 'assigned templates:\n => ' + devObj.tplts.sort().join("\n => ");
-                    }
-
-                    if(usedTemplate == template) {
-                        tplt.ass.push(usedDevice +','+ usedPeer + ((usedPeerType != '')? ':' + usedPeerType: ''));
-
-                        if(usedType == type) {
-                            devObj.use = true;
-                            var inpCheck = document.getElementById('hm_dev_use_' + usedLink);
-                            inpCheck.checked = true;
-                            inpCheck.setAttribute('orgvalue','on');
+                        if(tplt.dev.has(usedLink)) { //if row exist in device table
+                            var devObj = tplt.dev.get(usedLink);
+                            var usedPeerType = (mLine[3] == undefined)? '': mLine[3];
+                            var usedType = (usedPeerType == 'both')? '': usedPeerType;
+                            var usedTemplate = mLine[4].trim();
+                            var usedTplt = usedTemplate + ((usedType != '')? '_' + usedType: '');
                             
-                            var mPars = mLine[5].trim().split(' ');
-                            if(mPars != '') { //template use pars
-                                for(var p = 0; p < mPars.length; ++p) {
-                                    var parId = 'p' + p;
-                                    var mPar = mPars[p].split(':');
-                                    var parValue = mPar[1];
-                                    devObj.pars.push(parValue);
-                                    var inpPar = document.getElementById('hm_dev_v' +p+ '_' + usedLink);
-                                    inpPar.value = parValue;
-                                    inpPar.setAttribute('orgvalue',parValue);
-                                    if(inpPar.nodeName != 'SELECT') {
-                                        inpPar.title = inpPar.title.replace(/current:.*$/,'current:' + parValue);
-                                        inpPar.placeholder = '(' +parValue+ ')';
-                                    }
-                                    if(usedDevice == entity && usedPeer == idx) { 
-                                        var parObj = tplt.par.get(parId);
-                                        parObj.value = parValue;
-                                        tplt.par.set(parId,parObj);
-                                        var inpPar = document.getElementById('hm_tplt_' +parId+ '_value');
-                                        inpPar.value = parValue;
-                                        inpPar.setAttribute('orgvalue',parValue);
-                                        if(inpPar.nodeName != 'SELECT') {
+                            if(!devObj.tplts.includes(usedTplt)) {devObj.tplts.push(usedTplt);}
+                            if(devObj.tplts.length > 0) {
+                                var linkName = document.getElementById('hm_dev_name_' + usedLink);
+                                linkName.style.color = devObj.tplts.length > 1? 'orange': 'yellow'; //links with templates becomes color
+                                linkName.title = 'assigned templates:\n => ' + devObj.tplts.sort().join("\n => ");
+                            }
+
+                            if(usedTemplate == tplt.name) {
+                                tplt.ass.push(usedDevice +','+ usedPeer + ((usedPeerType != '')? ':' + usedPeerType: ''));
+
+                                if(usedType == tplt.type) {
+                                    devObj.use = true;
+                                    var inpCheck = document.getElementById('hm_dev_use_' + usedLink);
+                                    inpCheck.checked = true;
+                                    inpCheck.setAttribute('orgvalue','on');
+                                    
+                                    var mPars = mLine[5].trim().split(' ');
+                                    if(mPars != '') { //template use pars
+                                        for(var p = 0; p < mPars.length; ++p) {
+                                            var parId = 'p' + p;
+                                            var mPar = mPars[p].split(':');
+                                            var parValue = mPar[1];
+                                            devObj.pars.push(parValue);
+                                            var inpPar = document.getElementById('hm_dev_v' +p+ '_' + usedLink);
+                                            inpPar.value = parValue;
+                                            inpPar.setAttribute('orgvalue',parValue);
                                             inpPar.title = inpPar.title.replace(/current:.*$/,'current:' + parValue);
-                                            inpPar.placeholder = '(' +parValue+ ')';
+                                            if(inpPar.nodeName != 'SELECT') {
+                                                inpPar.placeholder = '(' +parValue+ ')';
+                                            }
+                                            if(usedDevice == entity && usedPeer == idx) { 
+                                                var parObj = tplt.par.get(parId);
+                                                parObj.value = parValue;
+                                                tplt.par.set(parId,parObj);
+                                                var inpPar = document.getElementById('hm_tplt_' +parId+ '_value');
+                                                inpPar.value = parValue;
+                                                inpPar.setAttribute('orgvalue',parValue);
+                                                inpPar.title = inpPar.title.replace(/current:.*$/,'current:' + parValue);
+                                                if(inpPar.nodeName != 'SELECT') {
+                                                    inpPar.placeholder = '(' +parValue+ ')';
+                                                }
+                                                var inpReg = document.getElementById('hm_reg_val_' + inpPar.name);
+                                                inpReg.value = parValue;
+                                                inpReg.setAttribute('tplvalue',parValue);
+                                            }
                                         }
-                                        var inpReg = document.getElementById('hm_reg_val_' + inpPar.name);
-                                        inpReg.value = parValue;
-                                        inpReg.setAttribute('tplvalue',parValue);
                                     }
                                 }
                             }
+                            tplt.dev.set(usedLink, devObj);
                         }
                     }
-                    tplt.dev.set(usedLink, devObj);
                 }
-			}
-		}
-        
-        //detection to show the use-button
-        var observer = new MutationObserver(function callback(mutationList,observer) {
-            mutationList.forEach((mutation) => {
-                switch(mutation.type){
-                    case 'childList':
-                        break;
-                    case 'attributes':
-                        if(mutation.attributeName == 'class') {
-                            var mode = $('#hm_tplt_details').val();
-                            var isUseMode = (mode == 'usg' || mode == 'all')? true: false;
-                            var changedDevices = $("[id^='hm_dev_name_'].changed");
-                            if(changedDevices.length > 0) {
-                                $('#hm_popup_btn_use').attr('active','on');
-                                if(isUseMode) {$('#hm_popup_btn_use').show();}
-                            }
-                            else {
-                                $('#hm_popup_btn_use').attr('active','off');
-                                if(isUseMode) {$('#hm_popup_btn_use').hide();}
-                            }
+                
+                //detection to show the use-button
+                var observer = new MutationObserver(function callback(mutationList,observer) {
+                    mutationList.forEach((mutation) => {
+                        switch(mutation.type){
+                            case 'childList':
+                                break;
+                            case 'attributes':
+                                if(mutation.attributeName == 'class') {
+                                    var mode = $('#hm_tplt_details').val();
+                                    var isUseMode = (mode == 'usg' || mode == 'all')? true: false;
+                                    var changedDevices = $("[id^='hm_dev_name_'].changed");
+                                    if(changedDevices.length > 0) {
+                                        $('#hm_popup_btn_use').attr('active','on');
+                                        if(isUseMode) {$('#hm_popup_btn_use').show();}
+                                    }
+                                    else {
+                                        $('#hm_popup_btn_use').attr('active','off');
+                                        if(isUseMode) {$('#hm_popup_btn_use').hide();}
+                                    }
+                                }
+                                break;
+                            case 'subtree':
+                                break;
                         }
-                        break;
-                    case 'subtree':
-                        break;
+                    });
+                });
+                var observerOptions = {childList: false, attributes: true, subtree: false};
+                $("[id^='hm_dev_name_']").each(function() {observer.observe(this,observerOptions);});
+                
+                // show parameter table
+                (tplt.par.size == 0)? $('#hm_tplt_parRow_header').hide(): $('#hm_tplt_parRow_header').show();
+                for(var p = 0; p < 9; ++p) {
+                    var parId = 'p' + p;
+                    if(tplt.par.has(parId)) {
+                        $('#hm_tplt_parRow_' + p).show();				
+                        var newPar = tplt.par.get(parId);
+                        var inpParName = document.getElementById("hm_tplt_" + parId + "_nameIn");	
+                        inpParName.placeholder = 'new_parameter_' + newPar.masterReg;
+                        inpParName.value = newPar.name;
+                        inpParName.hidden = true;
+                        var outParName = document.getElementById("hm_tplt_" + parId + "_nameOut");					
+                        outParName.innerHTML = newPar.name;
+                        outParName.hidden = false;
+                        outParName.removeAttribute('class');
+                        var inpParValue = document.getElementById("hm_tplt_" + parId + "_value");
+                        inpParValue.hidden = false;
+                        var parDesc = document.getElementById("hm_tplt_" + parId + "_desc");					
+                        parDesc.innerHTML = document.getElementById("hm_reg_desc_" + newPar.masterReg).innerHTML;
+                    }
+                    else {$('#hm_tplt_parRow_' + p).hide();}
                 }
+                // show device table columns
+                for(var p = 0; p < 9; ++p) {
+                    $("[id^='hm_dev_h" +(p+2)+ "']").each(function() {this.hidden = (p > tplt.par.size -1)? true: false;});
+                    $("[id^='hm_dev_p" +p+ "']").each(function() {this.hidden = (p > tplt.par.size -1)? true: false;});
+                }
+                // show colors in reg table
+                $("[id^='hm_tplt_reg_']").each(function() {
+                    this.disabled = true;
+                    this.setAttribute('orgvalue',this.value);
+                    if(this.value == 'off') {this.style.backgroundColor = 'white';}
+                    else if(this.value == 'on') {this.style.backgroundColor = 'lightgreen';}
+                    else if(tplt.par.size > 0) {
+                        this.style.backgroundColor = (tplt.par.get(this.value).clients.length == 0)? 'yellow': 'orange';
+                    }
+                });
+                $("[id^='hm_reg_val_']").each(function() {
+                    this.disabled = true;
+                    var idName = this.id.replace(/_val_/,'_name_');
+                    if(this.value != this.getAttribute('orgvalue')) {$('#' + idName).attr('class','changed');}
+                    else {$('#' + idName).removeAttr('class');}
+                });
+                
+                $('#hm_tplt_define').val(HMdeviceTools_makeCmdDefineTemplate());
+                $('#hm_popup_btn_use').attr('active','off');
+                HMdeviceTools_updateTemplateDetails();
             });
         });
-        var observerOptions = {childList: false, attributes: true, subtree: false};
-        $("[id^='hm_dev_name_']").each(function() {observer.observe(this,observerOptions);});
-
 	});
 }
 
@@ -1715,12 +1791,14 @@ function HMdeviceTools_updatePopupTpltRegOptions(id) {
 }
 
 function HMdeviceTools_updatePopupRegister(id) {
-	var curInput = document.getElementById(id);
-	if(curInput.getAttribute("orgvalue") != curInput.value) {
-		$("#hm_reg_name_" + curInput.name).attr("class", "changed");
-	}
-	else {$("#hm_reg_name_" + curInput.name).removeAttr("class");}
-	if($('#hm_tplt_select').val() == "expert") {HMdeviceTools_showApplyBtn();}
+    var curInput = document.getElementById(id);
+    if(curInput.getAttribute("orgvalue") != curInput.value) {
+        $("#hm_reg_name_" + curInput.name).attr("class", "changed");
+    }
+    else {$("#hm_reg_name_" + curInput.name).removeAttr("class");}
+	if($('#hm_tplt_select').val() == "expert") {
+        HMdeviceTools_showApplyBtn();
+    }
 }
 
 function HMdeviceTools_showApplyBtn() {
@@ -1735,31 +1813,6 @@ function HMdeviceTools_showApplyBtn() {
 		}
 	}
 	(showApply)? $('#hm_popup_btn_apply').show(): $('#hm_popup_btn_apply').hide();
-}
-
-// parse the register list - store info into a map
-function HMdeviceTools_parseRegisterList(data) {
-  var regmap = new Map();
-  var lines = data.split('\n');
-  for(var i = 1; i < lines.length; ++i) {
-    var line = lines[i];
-    var match = line.match(/\s*\d:\s+([\w-]+)\s+\|([^|]+)\|([^|]+)\|(.*)/);
-    if(match != null) {
-      var regobj = {};
-      regobj.name = match[1];
-      regobj.range = match[2].trim();
-      regobj.desc = match[4].trim();
-      if(regobj.range == 'literal') {
-        match = regobj.desc.match(/(.*)options:(.*)/);
-        if(match != null) {
-          if(match[1] != '') {regobj.desc = match[1];}
-          regobj.literals = match[2].split(',').sort();
-        }
-      }
-      regmap.set(regobj.name,regobj);
-    }
-  }
-  return regmap;  
 }
 
 // get the base url
@@ -1861,14 +1914,8 @@ function HMdeviceTools_openPopup(device,peer) {
   check.innerHTML = "<span class=\"ui-button-text\">Check</span>";
   check.setAttribute("onclick","HMdeviceTools_btnAction('" +device+ "','" +peer+ "','check')");
   check.setAttribute("class","ui-button ui-widget ui-state-default ui-corner-all ui-button-text-only");
-  //execute button
-  var exe = document.createElement("button");
-  left.appendChild(exe);
-  exe.id = "hm_popup_btn_execute";
-  exe.style.display = "none";
-  exe.innerHTML = "<span class=\"ui-button-text\">Execute</span>";
-  exe.setAttribute("onclick","HMdeviceTools_btnAction('" +device+ "','" +peer+ "','execute')");
-  exe.setAttribute("class","ui-button ui-widget ui-state-default ui-corner-all ui-button-text-only");
+
+
   //use button
   var use = document.createElement("button");
   right.appendChild(use);
@@ -1896,6 +1943,14 @@ function HMdeviceTools_openPopup(device,peer) {
   unassign.setAttribute('active','off');
   unassign.setAttribute("onclick","HMdeviceTools_btnAction('" +device+ "','" +peer+ "','unassign')");
   unassign.setAttribute("class","ui-button ui-widget ui-state-default ui-corner-all ui-button-text-only");
+  //execute button
+  var exe = document.createElement("button");
+  right.appendChild(exe);
+  exe.id = "hm_popup_btn_execute";
+  exe.style.display = "none";
+  exe.innerHTML = "<span class=\"ui-button-text\">Exec</span>";
+  exe.setAttribute("onclick","HMdeviceTools_btnAction('" +device+ "','" +peer+ "','execute')");
+  exe.setAttribute("class","ui-button ui-widget ui-state-default ui-corner-all ui-button-text-only");
   //delete button
   var del = document.createElement("button");
   right.appendChild(del);
@@ -1976,6 +2031,7 @@ function HMdeviceTools_checkHMinfo() {
 function HMdeviceTools_templateCheck() {
     var alertMsg = 'define check find error(s): <br><br>';
     if(tplt.name == '') {alertMsg += '- missing name of the template<br>';}
+    if(tplt.name.match(/[<>]+/)) {alertMsg += '- template name includes forbidden characters (<,>)<br>';}
     if(tplt.par.size > 0) {
         var ids = Array.from(tplt.par.keys()).sort();
         for(var i = 0; i < ids.length; ++i) {
@@ -2013,7 +2069,7 @@ function HMdeviceTools_btnAction(device,peer,btn) {
             }
             else if(btn == 'define') { //define template
                 var cmd2 = '{';
-                cmd2 += 'foreach my $e (devspec2array("TYPE=CUL_HM:FILTER=DEF!=000000:FILTER=model!=VIRTUAL")){';
+                cmd2 += 'foreach my $e (devspec2array("TYPE=CUL_HM:FILTER=model!=(ACTIONDETECTOR|CCU-FHEM|VIRTUAL)")){';
                 cmd2 +=   'CUL_HM_TmplSetCmd($e);;';
                 cmd2 += '}';
                 cmd2 += '}';
@@ -2122,7 +2178,7 @@ function HMdeviceTools_btnAction(device,peer,btn) {
                 if(isTemplateAssigned) {
                     cmd2 += 'my @arr;;';
                 }
-                cmd2 += 'foreach my $e (devspec2array("TYPE=CUL_HM:FILTER=DEF!=000000:FILTER=model!=VIRTUAL")){';
+                cmd2 += 'foreach my $e (devspec2array("TYPE=CUL_HM:FILTER=model!=(ACTIONDETECTOR|CCU-FHEM|VIRTUAL)")){';
                 cmd2 +=   'CUL_HM_TmplSetCmd($e);;';
                 if(isTemplateAssigned) {
                     cmd2 +=   'if($defs{$e}{helper}{cmds}{lst}{tplChan} =~ m/(^|,)' +newName+ '(,|$)/){';
@@ -2168,15 +2224,6 @@ function HMdeviceTools_btnAction(device,peer,btn) {
                                 $.get(url,function(data2){
                                     if(data2) {FW_okDialog('error:<br><br>' + data2,0,function(){HMdeviceTools_cancelPopup(true);});}   //error with assignements
                                     else {
-                                        /*
-                                        saved changes!
-
-                                        WARNING!
-                                        lost assignments due to template changes:
-                                        => BlindPBU01:0
-                                        => BlindPBU02:0
-                                        => SwitchES01:0
-                                        */
                                         FW_okDialog('saved changes!<br><br>' + msg,0,function(){                                        //new template with old assignements
                                             HMdeviceTools_leaveEditMode();
                                             HMdeviceTools_updateTemplateList(device,peer,(newType == '')? newName: newName +'_'+ newType);
@@ -2238,15 +2285,17 @@ function HMdeviceTools_btnAction(device,peer,btn) {
         if(HMdeviceTools_debug) {log('HMdeviceTools: ' + cmd);}
         var url = HMdeviceTools_makeCommand(cmd);
         $.get(url, function(data){
-            if(data) {FW_okDialog(data);}
-            //else {HMdeviceTools_updateTemplateList(device,peer,(tplt.type == '')? tplt.name: tplt.name +'_'+ tplt.type);}
+            if(data) {FW_okDialog('error:<br><br>' + data,0,function(){HMdeviceTools_cancelPopup(true);});}
+            else {HMdeviceTools_cancelPopup(true);}
         });
     }
 }
 
 function HMdeviceTools_makeCmdDefineTemplate() {
     //set hminfo templateDef name par1:par2 ... "info" reg1:val1 reg2:val2 ...
-    var mode = $('#hm_tplt_select').prop('disabled')? 'edit': $('#hm_tplt_select').val();
+    var mode = $('#hm_tplt_select').val();
+    if(mode != 'expert' && mode != 'new') {mode = 'select';}
+    if(mode == 'select' && $('#hm_tplt_name').is(':visible')) {mode = 'edit';}
     var hminfo = document.getElementById('HMdeviceTools_toolsTable').getAttribute('hminfo');
     var tpltName = tplt.name;
     var cmd = 'set ' +hminfo+ ' templateDef ' + tpltName;
